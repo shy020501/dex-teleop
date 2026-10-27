@@ -1,0 +1,11 @@
+# Native MuJoCo reference runtime, independent of the Isaac environment.
+# CPU-only torch is installed separately from the official PyTorch index.
+mujoco==3.3.7
+pytorch-kinematics==0.7.6
+numpy==1.26.4
+scipy==1.15.3
+h5py==3.14.0
+pyzmq==27.0.2
+Pillow==11.3.0
+PyYAML==6.0.2
+pytest==8.4.2

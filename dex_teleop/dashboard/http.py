@@ -186,7 +186,7 @@ def serve_viewer(store, port):
                     self.reply(200,'application/json',json.dumps(keys).encode())
                 elif url.path == '/keyboard':
                     state=keyboard.snapshot()
-                    if dashboard and (dashboard.debug_mode or dashboard.state['phase'] == 'replay'):
+                    if dashboard and (dashboard.debug_mode or dashboard.state['phase'] in ('replay', 'awaiting_outcome')):
                         state.update(keys=[], focused=False)
                     if dashboard:state['keys']=[k for k in state['keys'] if k not in ('f6','f7')]
                     self.reply(200,'application/json',json.dumps(state).encode())

@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 from dex_teleop.core.config import resolve_server_config
 
 # Register a simulator's launch module here when its integration is implemented.
-RUNNERS = {'bench2dex': 'scripts.bench2dex.launch'}
+RUNNERS = {'bench2dex': 'scripts.bench2dex.launch', 'pomdar': 'scripts.pomdar.launch'}
 
 
 def main(argv=None):

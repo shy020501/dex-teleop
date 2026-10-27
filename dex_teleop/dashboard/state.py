@@ -347,8 +347,9 @@ class Dashboard:
         """Read existing CPU telemetry; HTTP threads never access Isaac/GPU state."""
         with self.lock:
             receiver, phase = self._pose_receiver, self.state['phase']
+            reference = self.state.get('pose_reference', 'palm')
         result = dict(ready=False, mode='debug' if self.debug_mode else 'waiting', age_ms=None,
-                      coordinate_frame='simulation_world_z_up_m', reference='palm', hands={})
+                      coordinate_frame='simulation_world_z_up_m', reference=reference, hands={})
         if self.debug_mode or receiver is None or phase in ('loading', 'resetting', 'switching'):
             return result
         with receiver.lock:
@@ -388,6 +389,27 @@ class Dashboard:
             raise ValueError('Replay 생성 중입니다. 완료하거나 취소한 후 변경하세요.')
         if self.debug_mode and action in ('toggle', 'reset', 'haptics', 'workspace'):
             raise ValueError('DEBUG 모드에서는 로봇 조작·리셋·수집·진동을 사용할 수 없습니다.')
+        if action == 'outcome':
+            with self.lock:
+                if self.state.get('success_mode') != 'manual' or type(data.get('success')) is not bool:
+                    raise ValueError('Manual outcome is not supported or the result is invalid')
+                request = self.state.get('outcome_request')
+                if (self.debug_mode or not self.state['ready'] or self.state['phase'] != 'awaiting_outcome'
+                        or not request or data.get('token') != request['token']):
+                    raise ValueError('This episode is no longer waiting for an outcome')
+                if request.get('submitted'):
+                    if request['success'] != data['success']:
+                        raise ValueError('An outcome has already been submitted for this episode')
+                    return {'accepted': True}
+                try:
+                    self.commands.put_nowait(dict(action='outcome', token=request['token'], success=data['success']))
+                except queue.Full:
+                    raise ValueError('명령 처리 중입니다. 잠시 후 다시 시도하세요.') from None
+                request.update(submitted=True, success=data['success'])
+            return {'accepted': True}
+        with self.lock:
+            if self.state['phase'] == 'awaiting_outcome':
+                raise ValueError('Choose success or failure for the stopped episode first')
         if action == 'workspace':
             settings = validate_workspace(data.get('settings'))
             with self.lock:

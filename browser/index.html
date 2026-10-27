@@ -26,9 +26,11 @@ main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:
 .replay-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.replay-pair figure{margin:0;min-width:0}.replay-pair img{width:100%;aspect-ratio:16/9;object-fit:contain;background:#050b10}.replay-pair figcaption{font-size:12px;margin:0 0 8px;color:var(--muted)}
 .replay-controls{margin-top:12px}.replay-controls input{flex:1;width:auto}.replay-job{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-width:0}.replay-job span{font-size:12px;overflow-wrap:anywhere}#replayStep{font:12px ui-monospace,monospace}#replayMetrics,#replayNote{font-size:12px}#replayNote{color:var(--muted)}
 .language-switch{display:flex;align-items:center;gap:1px;border:1px solid #4b6174;border-radius:5px;padding:0 3px;flex:none}.language-switch button{padding:6px 7px;background:transparent;border:0;color:var(--muted);font-size:12px}.language-switch button.active{color:var(--accent);font-weight:700}.language-switch span{color:#607386;font-size:12px}.header-actions{align-items:center}.workspace-grid{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.workspace-axis{overflow-wrap:anywhere}.timing-values{gap:0 8px}.timing-values output{white-space:nowrap}.timing-heading{gap:8px}.replay-options select{min-width:0;max-width:100%}
+#outcomeDialog{width:420px;max-width:calc(100vw - 48px);padding:24px;box-sizing:border-box;text-align:left}#outcomeDialog h2{font-size:18px;margin:0 0 12px;outline:none}#outcomeDescription{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 22px}.outcome-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}#outcomeSuccess{background:#245143;border-color:#467d69}#outcomeMessage{font-size:12px;margin:12px 0 0;line-height:1.5;color:#edc0a9}#outcomeMessage:empty{display:none}
 </style>
 <style>
 .view-telemetry{position:absolute;top:12px;left:12px;width:min(512px,calc(100% - min(440px,46%) - 36px));display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;z-index:2;pointer-events:none}
+.wrist-views.single-camera:not(.collapsed){width:min(260px,35%)}
 .eef-poses{flex:1 1 230px;min-width:0;max-width:100%;pointer-events:none;background:#101c28d9;border:1px solid #52677a;border-radius:6px;padding:8px 10px;box-shadow:0 2px 10px #0003}
 .eef-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#9fb4c4}.eef-heading span:last-child{color:#93cdb6}.eef-poses.stale .eef-heading span:last-child{color:#c7b48d}
 .eef-card{margin-top:7px}.eef-card strong{display:block;font-size:11px;font-weight:500;color:#d6e5ee;margin-bottom:3px}.eef-values{display:grid;grid-template-columns:44px repeat(3,minmax(0,1fr));gap:3px;font:11px ui-monospace,monospace;font-variant-numeric:tabular-nums;line-height:1.6}.eef-values span{color:#91a9bc;font-size:10px}.eef-values output{text-align:right;white-space:nowrap}
@@ -51,9 +53,9 @@ main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:
 <div class="tabs" role="tablist" aria-label="Workspace panels" data-i18n-aria-label="작업 패널"><button id="settingsTab" class="active" role="tab" aria-selected="true" aria-controls="settingsPanel" data-i18n="수집 세팅">Collection settings</button><button id="dataTab" role="tab" aria-selected="false" aria-controls="dataPanel" data-i18n="데이터">Data</button></div>
 <div id="settingsPanel" class="panel" role="tabpanel" aria-labelledby="settingsTab">
 <section class="setting-section"><h2 data-i18n="Task 설정">Task settings</h2><select id="task" aria-label="Select task" data-i18n-aria-label="Task 선택"></select><div class="task-criteria"><div class="criteria-heading"><span data-i18n="성공 조건">Success criteria</span><small id="taskDwell"></small></div><div id="taskDescription" class="criteria-copy" tabindex="0"></div></div><div class="row task-actions"><button id="applyTask" data-i18n="Task 적용">Apply task</button><button id="downloadTask" disabled data-i18n="Asset 다운로드">Download assets</button></div><div id="downloadStatus" class="badge" hidden></div><button id="cancelDownload" hidden data-i18n="다운로드 취소">Cancel download</button></section>
-<section class="setting-section"><h2 data-i18n="Episode 수집">Episode collection</h2><div id="collection" class="badge" data-i18n="연결 중…">Connecting…</div><div class="row"><button id="record" data-i18n="F7 리셋 후 시작">F7 Reset &amp; record</button><button id="reset" data-i18n="F6 전체 리셋">F6 Reset all</button></div><p class="muted hint"><span data-i18n="성공 시 자동 저장 · 수동 종료/리셋은 실패로 저장.">Auto-save on success. Manual stop or reset saves as failure.</span><br><span data-i18n="Episode 최대 길이: 1,800 steps · 약 90초.">Episode limit: 1,800 steps · about 90 s.</span></p></section>
+<section class="setting-section"><h2 data-i18n="Episode 수집">Episode collection</h2><div id="collection" class="badge" data-i18n="연결 중…">Connecting…</div><div class="row"><button id="record" data-i18n="F7 리셋 후 시작">F7 Reset &amp; record</button><button id="reset" data-i18n="F6 전체 리셋">F6 Reset all</button></div><p class="muted hint"><span id="collectionPolicy" data-i18n="성공 시 자동 저장 · 수동 종료/리셋은 실패로 저장.">Auto-save on success. Manual stop or reset saves as failure.</span><br><span id="collectionLimit" data-i18n="Episode 최대 길이: 1,800 steps · 약 90초.">Episode limit: 1,800 steps · about 90 s.</span></p></section>
 <section id="workspaceSettings" class="setting-section"><h2 data-i18n="이동 범위">Movement limits</h2>
-<p class="workspace-note" data-i18n="각 손의 Home 기준 · 양손 공통 · 단위 m">Relative to each hand's Home · both hands · meters</p>
+<p id="workspaceNote" class="workspace-note" data-i18n="각 손의 Home 기준 · 양손 공통 · 단위 m">Relative to each hand's Home · both hands · meters</p>
 <form id="workspaceForm">
 <div class="workspace-grid">
 <span class="column-name" data-i18n="축">Axis</span><span class="column-name" data-i18n="최소 (−)">Min (−)</span><span class="column-name" data-i18n="최대 (+)">Max (+)</span>
@@ -61,7 +63,7 @@ main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:
 <div class="workspace-axis"><span data-i18n="Y · 앞뒤">Y · Forward/back</span><small id="workspaceKeysY">S / W</small></div><input id="workspaceMinY" type="number" step="0.01" min="-2" max="0" value="-0.15" required aria-label="Minimum Y offset from Home (m)" data-i18n-aria-label="Y축 최소 이동 위치 (Home 기준 m)"><input id="workspaceMaxY" type="number" step="0.01" min="0" max="2" value="0.35" required aria-label="Maximum Y offset from Home (m)" data-i18n-aria-label="Y축 최대 이동 위치 (Home 기준 m)">
 <div class="workspace-axis"><span data-i18n="Z · 위아래">Z · Up/down</span><small id="workspaceKeysZ">Shift / Space</small></div><input id="workspaceMinZ" type="number" step="0.01" min="-2" max="0" value="-0.50" required aria-label="Minimum Z offset from Home (m)" data-i18n-aria-label="Z축 최소 이동 위치 (Home 기준 m)"><input id="workspaceMaxZ" type="number" step="0.01" min="0" max="2" value="0.15" required aria-label="Maximum Z offset from Home (m)" data-i18n-aria-label="Z축 최대 이동 위치 (Home 기준 m)">
 </div>
-<div class="muted workspace-hint" data-i18n="범위를 넓혀도 로봇의 도달 한계는 유지됩니다.">Increasing these limits does not extend the robot's reach.</div>
+<div id="workspaceReachHint" class="muted workspace-hint" data-i18n="범위를 넓혀도 로봇의 도달 한계는 유지됩니다.">Increasing these limits does not extend the robot's reach.</div>
 <div class="row"><button id="applyWorkspace" type="submit" disabled data-i18n="범위 적용">Apply limits</button><button id="resetWorkspace" type="button" data-i18n="기본값">Defaults</button></div>
 <div id="workspaceMessage" class="workspace-message" role="status"></div>
 </form></section>
@@ -101,7 +103,13 @@ main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:
 <div id="wristGrid" class="wrist-grid">
 <figure class="wrist-card"><figcaption data-i18n="왼손">Left hand</figcaption><div id="wristLeftWrap" class="wrist-image"><img id="wristLeft" alt="Left wrist camera" data-i18n-alt="왼손 손목 카메라"><span id="wristLeftState" class="wrist-state" data-i18n="준비 중…">Preparing…</span></div></figure>
 <figure class="wrist-card"><figcaption data-i18n="오른손">Right hand</figcaption><div id="wristRightWrap" class="wrist-image"><img id="wristRight" alt="Right wrist camera" data-i18n-alt="오른손 손목 카메라"><span id="wristRightState" class="wrist-state" data-i18n="준비 중…">Preparing…</span></div></figure>
-</div></div></main></section>
+</div></div>
+<dialog id="outcomeDialog" aria-labelledby="outcomeTitle" aria-describedby="outcomeDescription">
+<h2 id="outcomeTitle" tabindex="-1" data-i18n="Episode 결과 선택">Choose episode outcome</h2>
+<p id="outcomeDescription" data-i18n="수집이 종료되었습니다. 성공 또는 실패를 선택하면 저장 후 환경이 리셋됩니다.">Recording has stopped. Choose success or failure to save the episode and reset the environment.</p>
+<div class="outcome-actions"><button id="outcomeFail" data-i18n="실패로 저장">Save as failure</button><button id="outcomeSuccess" data-i18n="성공으로 저장">Save as success</button></div>
+<p id="outcomeMessage" role="status" aria-live="polite"></p>
+</dialog></main></section>
 </div>
 <dialog id="details" aria-labelledby="detailTitle">
 <div class="episode-heading"><div class="episode-title"><div class="episode-title-line"><h2 id="detailTitle" data-i18n="Episode 정보">Episode details</h2><span id="episodeOutcome" class="outcome"></span></div><p id="episodeFilename" class="episode-filename"></p></div><div class="episode-heading-actions"><button id="createReplay" data-i18n="Relay 생성">Generate replay</button></div></div>
@@ -187,7 +195,7 @@ async function refreshKeyboardConfig(){try{
  }
 }catch(e){}}
 refreshKeyboardConfig();setInterval(refreshKeyboardConfig,1000);
-function focused(){return document.hasFocus()&&!document.hidden&&document.activeElement===viewport;}
+function focused(){return document.hasFocus()&&!document.hidden&&!$('outcomeDialog').open&&document.activeElement===viewport;}
 async function sendKeys(){if(debugMode){pressed.clear();viewport.dataset.control='disabled';return;}if(sendingKeys)return;sendingKeys=true;const active=focused();try{const keys=[...new Set([...pressed].map(code=>keyCodes[code]))];const r=await fetch('/keyboard',{method:'POST',headers:{'Content-Type':'application/json','X-Dex-Teleop-Control':'1'},body:JSON.stringify({session:pageSession,seq:++keySeq,focused:active,keys:active?keys:[]}),keepalive:true});const result=await r.json();viewport.dataset.control=active?(result.accepted?'active':'busy'):'inactive';}catch(e){viewport.dataset.control='offline';}finally{sendingKeys=false;}}
 function clearKeys(){pressed.clear();sendKeys();}
 viewport.addEventListener('pointerdown',()=>{viewport.focus();sendKeys();});viewport.addEventListener('focus',sendKeys);viewport.addEventListener('blur',clearKeys);
@@ -198,8 +206,11 @@ window.addEventListener('blur',clearKeys);document.addEventListener('visibilityc
 let wristEnabled=false,wristOpen=preference.get('wrist-open',true),wristInfo=null;
 const wristFeeds={left:{id:'Left',seq:0,stream:'',received:0,error:''},right:{id:'Right',seq:0,stream:'',received:0,error:''}};
 function wristLayout(){
+ const single=Object.values(wristInfo?.streams||{}).filter(stream=>stream.enabled).length===1;
  $('wristViews').hidden=!wristEnabled;$('wristViews').classList.toggle('collapsed',!wristOpen);
+ $('wristViews').classList.toggle('single-camera',single);
  $('wristGrid').hidden=!wristOpen;L.text('toggleWrist',wristOpen?'접기':'펼치기');$('toggleWrist').setAttribute('aria-expanded',String(wristOpen));
+ $('wristGrid').style.gridTemplateColumns=single?'1fr':'';
 }
 $('toggleWrist').addEventListener('pointerdown',e=>e.stopPropagation());
 $('toggleWrist').addEventListener('keydown',e=>e.stopPropagation());
@@ -215,13 +226,14 @@ function wristStatus(){
 function updateWrist(info){
  wristInfo=info;wristEnabled=Boolean(info?.enabled);L.text('wristTitle',debugMode?'손목 카메라 · 정지 화면':'손목 카메라');
  for(const [side,feed] of Object.entries(wristFeeds)){
+  if(info?.streams)$('wrist'+feed.id+'Wrap').closest('figure').hidden=!info.streams[side]?.enabled;
   if(info?.stream&&feed.stream&&feed.stream!==info.stream){feed.seq=0;feed.received=0;}
  }
  wristLayout();wristStatus();
 }
 async function wristFrames(side){const feed=wristFeeds[side],image=$('wrist'+feed.id);
  while(true){
-  if(!wristEnabled||!wristOpen||paused||document.hidden||(debugMode&&feed.seq>0&&feed.stream===wristInfo?.stream)){await wait(200);continue;}
+  if(!wristEnabled||!wristInfo?.streams?.[side]?.enabled||!wristOpen||paused||document.hidden||(debugMode&&feed.seq>0&&feed.stream===wristInfo?.stream)){await wait(200);continue;}
   const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),3500);
   try{
    const r=await fetch('/camera/'+side+'.jpg?after='+feed.seq+'&stream='+encodeURIComponent(feed.stream),{cache:'no-store',signal:abort.signal});
@@ -237,6 +249,7 @@ setInterval(wristStatus,500);
 let syncedFolder=null,syncedTask=null,taskRefresh=0,ui=null,taskList=[],selectedEpisode=null,lastListing='',lastRefresh=0,treeSignature='',treeBusy=false,criteriaSignature='',detailsRequest=0;
 let hapticsDirty=false,hapticRevision=0,hapticPending=null,hapticsSaving=false;
 let workspaceDirty=false,workspaceSaving=false,workspaceAwaiting=null;
+let dashboardRequest=0,outcomeToken=null,outcomeSubmitting=false,outcomeSubmitted=false;
 const expandedFolders=new Set(preference.get('tree-expanded',['']));
 function sidebar(show){$('sidebar').hidden=!show;$('layout').classList.toggle('sidebar-hidden',!show);const button=$('toggleSidebar'),label=show?'탐색기 닫기':'탐색기 열기';button.textContent=show?'<':'>';L.text(button,label,{},'title');L.text(button,label,{},'aria-label');button.setAttribute('aria-expanded',String(show));preference.set('sidebar',show);}
 $('toggleSidebar').onclick=()=>sidebar($('sidebar').hidden);sidebar(preference.get('sidebar',true));
@@ -246,6 +259,28 @@ async function api(path,data){const r=await fetch(path,data?{method:'POST',heade
 function report(e){L.bindMessage('toast',e.message||String(e));}
 async function command(data){try{await api('/api/command',data);L.text('toast','');await dashboardState();}catch(e){report(e);}}
 $('record').onclick=()=>command({action:'toggle'});$('reset').onclick=()=>command({action:'reset'});
+// The server owns the pending result so reconnecting or reloading cannot lose it.
+const outcomeDialog=$('outcomeDialog');
+for(const event of ['pointerdown','keydown','keyup'])outcomeDialog.addEventListener(event,e=>e.stopPropagation());
+outcomeDialog.addEventListener('cancel',e=>e.preventDefault());
+function syncOutcome(state){
+ const token=state.success_mode==='manual'&&state.phase==='awaiting_outcome'&&typeof state.outcome_request?.token==='string'?state.outcome_request.token:null;
+ if(token!==outcomeToken){outcomeToken=token;outcomeSubmitting=false;outcomeSubmitted=false;L.text('outcomeMessage','');}
+ if(!token){if(outcomeDialog.open)outcomeDialog.close();return;}
+ if(!outcomeSubmitting)outcomeSubmitted=Boolean(state.outcome_request.submitted);
+ if(outcomeSubmitted)L.text('outcomeMessage','저장 처리 중…');
+ else if(state.error)L.bindMessage('outcomeMessage',state.error);
+ $('outcomeFail').disabled=$('outcomeSuccess').disabled=outcomeSubmitting||outcomeSubmitted;
+ if(!outcomeDialog.open){clearKeys();outcomeDialog.showModal();$('outcomeTitle').focus();}
+}
+async function chooseOutcome(success){
+ const token=outcomeToken;if(!token||outcomeSubmitting||outcomeSubmitted)return;
+ outcomeSubmitting=true;syncOutcome(ui);L.text('outcomeMessage','결과 저장 요청 중…');
+ try{await api('/api/command',{action:'outcome',token,success});if(outcomeToken===token){outcomeSubmitted=true;L.text('outcomeMessage','저장 처리 중…');}}
+ catch(error){if(outcomeToken===token)L.bindMessage('outcomeMessage',error.message||String(error));}
+ finally{if(outcomeToken===token)outcomeSubmitting=false;try{await dashboardState();}catch(error){if(outcomeToken===token)L.bindMessage('outcomeMessage',error.message||String(error));}syncOutcome(ui);}
+}
+$('outcomeFail').onclick=()=>chooseOutcome(false);$('outcomeSuccess').onclick=()=>chooseOutcome(true);
 $('applyFolder').onclick=async()=>{await command({action:'folder',folder:$('folder').value.trim()});await refreshEpisodes();};
 $('applyTask').onclick=()=>{if(ui&&$('task').value!==ui.task&&confirm(tr('선택한 task로 변경할까요?')))command({action:'task',task:$('task').value});};
 $('task').onchange=()=>{
@@ -256,8 +291,8 @@ $('task').onchange=()=>{
   if(criteria?.details?.length){const list=document.createElement('ul');for(const [index,text] of criteria.details.entries()){const item=document.createElement('li');L.format(item,()=>criteria.translations?.[L.language]?.details?.[index]||L.message(text));list.append(item);}box.append(list);}
   box.scrollTop=0;L.text('taskDwell',Number.isFinite(criteria?.dwell_time_s)?'{seconds}초 유지':'',{seconds:criteria?.dwell_time_s});
  }
- $('applyTask').disabled=!ui?.ready||ui?.recording||['saving','save_error'].includes(ui?.phase)||ui?.workspace_pending||busy||!t?.available||t.id===ui?.task;
- $('downloadTask').disabled=!ui?.ready||Boolean(ui?.recording)||busy||!t||t.available;
+ $('applyTask').disabled=!ui?.ready||ui?.recording||['saving','save_error','awaiting_outcome'].includes(ui?.phase)||ui?.workspace_pending||busy||!t?.available||t.id===ui?.task;
+ $('downloadTask').disabled=!ui?.ready||Boolean(ui?.recording)||ui?.phase==='awaiting_outcome'||busy||!t||t.available;
  L.bindMessage('downloadTask',t?.available?'이 Task의 asset이 준비되어 있습니다.':t?.asset_error||'선택한 Task의 asset 다운로드','title');
 };
 $('downloadTask').onclick=()=>command({action:'download',task:$('task').value});$('cancelDownload').onclick=()=>{const job=ui?.assets?.jobs.find(j=>j.state==='downloading'||j.state==='queued');if(job)command({action:'download_cancel',task:job.task});};
@@ -365,19 +400,32 @@ function renderEpisode(info,file){
  const facts=[['Task',()=>s.task||meta.task_name||'—'],['로봇',()=>s.robot||meta.robot_key||'—'],['저장 시각',saved],
   ['종료 사유',()=>L.message(reasons[s.termination_reason]||s.termination_reason||'—')],
   ['Physics',()=>s.physics_hz?numberLabel(s.physics_hz)+' Hz':'—'],
-  ['Action',()=>s.action_dim==null?'—':tr('{count}차원',{count:numberLabel(s.action_dim,0)})+(meta.control_mode==='joint_position'&&meta.action_type==='absolute'?' · '+tr('절대 관절 목표'):'')],
+  ['Action',()=>s.action_dim==null?'—':meta.simulator==='pomdar'?tr('{count} 액추에이터 제어 + 손 pose 7D (xyz + wxyz)',{count:numberLabel(s.action_dim,0)}):tr('{count}차원',{count:numberLabel(s.action_dim,0)})+(meta.control_mode==='joint_position'&&meta.action_type==='absolute'?' · '+tr('절대 관절 목표'):'')],
   ['수집 상태',()=>s.valid_frames==null?'—':tr('{valid} / {total} 프레임 정상',{valid:numberLabel(s.valid_frames,0),total:numberLabel(s.frames,0)})]];
  $('episodeFacts').replaceChildren();for(const [key,value] of facts){const dt=document.createElement('dt'),dd=document.createElement('dd');L.text(dt,key);L.format(dd,value);$('episodeFacts').append(dt,dd);}
- renderDatasetTree(info.structure||[]);
+ renderDatasetTree(info.structure||[],meta);
 }
-function renderDatasetTree(nodes){
+function renderDatasetTree(nodes,metadata={}){
+ const labels=metadata.simulator==='pomdar'?{
+  robot:'MuJoCo 전체 일반화 상태',
+  'robot/qpos':'일반화 위치 (자유 관절 위치·쿼터니언 포함)',
+  'robot/qvel':'일반화 속도',
+  'robot/joint_names':'MuJoCo 관절 이름 (qpos 열과 1:1 대응 아님)',
+  action:'액추에이터 제어·손 목표 자세',
+  'action/commanded':'액추에이터별 제어값 (단위 참조)',
+  'action/action_names':'액추에이터 순서',
+  'action/control_types':'액추에이터별 제어 형식',
+  'action/control_units':'액추에이터별 단위',
+  'action/mocap_position_xyz':'손 목표 위치 · 월드 좌표 (m)',
+  'action/mocap_orientation_wxyz':'손 목표 자세 · 월드 wxyz',
+ }:{};
  function shapeText(node){return node.shape?(node.shape.length?'['+node.shape.join(' × ')+']':tr('단일 값'))+' '+node.dtype:'';}
  function build(node){
   const branch=node.kind==='group'&&node.children?.length,container=document.createElement(branch?'details':'div'),row=document.createElement(branch?'summary':'div');
   container.className=branch?'schema-group':'schema-item';container.dataset.path=node.path||'';
   row.className='schema-row'+(branch?'':' schema-leaf');
   if(branch){container.open=node.path==='cameras';const arrow=document.createElement('span');arrow.className='schema-arrow';arrow.setAttribute('aria-hidden','true');row.append(arrow);}
-  const name=document.createElement('span'),label=document.createElement('span');name.className='schema-name';name.textContent=node.name+(node.kind==='group'?'/':'');label.className='schema-description';L.bindMessage(label,node.label||'');row.append(name,label);
+  const name=document.createElement('span'),label=document.createElement('span');name.className='schema-name';name.textContent=node.name+(node.kind==='group'?'/':'');label.className='schema-description';L.bindMessage(label,labels[node.path]??node.label??'');row.append(name,label);
   const rgb=node.path?.startsWith('cameras/')&&node.path.split('/').length===2?node.children?.find(n=>n.name==='rgb'):null;
   if(node.shape||rgb){const shape=document.createElement('span');shape.className='schema-shape';L.format(shape,()=>(rgb?'RGB ':'')+shapeText(rgb||node));row.append(shape);}
   container.append(row);
@@ -406,9 +454,23 @@ $('collapseTree').onclick=()=>{expandedFolders.clear();expandedFolders.add('');f
 $('episodes').addEventListener('keydown',e=>{const row=e.target.closest('.tree-row');if(!row||e.altKey||e.ctrlKey||e.metaKey)return;const rows=[...$('episodes').querySelectorAll('.tree-row')].filter(r=>r.getClientRects().length);const current=rows.indexOf(row),folder=row.tagName==='SUMMARY'?row.parentElement:null;let next=null;if(e.key==='ArrowDown')next=rows[Math.min(rows.length-1,current+1)];else if(e.key==='ArrowUp')next=rows[Math.max(0,current-1)];else if(e.key==='Home')next=rows[0];else if(e.key==='End')next=rows[rows.length-1];else if(e.key==='ArrowRight'&&folder){if(!folder.open)folder.open=true;else next=rows[current+1];}else if(e.key==='ArrowLeft'){if(folder?.open)folder.open=false;else next=row.parentElement.closest('.tree-children')?.parentElement.querySelector(':scope > summary');}else return;e.preventDefault();if(next)next.focus();});
 async function refreshEpisodes(){if(!ui?.enabled||treeBusy)return;treeBusy=true;try{const snapshot=await api('/api/tree');L.format('counts',()=>`${snapshot.episodes} episodes · ${sizeLabel(snapshot.bytes)}\n`+tr('성공 {success} · 실패 {fail} · 휴지통 제외',snapshot));const signature=JSON.stringify(snapshot)+'|'+ui.folder;if(signature!==treeSignature){renderTree(snapshot);treeSignature=signature;}lastListing=ui.folder+'|'+ui.last_saved;lastRefresh=Date.now();}finally{treeBusy=false;}}
 async function dashboardState(){
- ui=await api('/api/state');debugMode=Boolean(ui.debug_mode);updateWrist(ui.wrist_cameras);if(ui.enabled===false){$('sidebar').hidden=true;$('layout').classList.add('sidebar-hidden');$('toggleSidebar').hidden=true;return;}$('toggleSidebar').hidden=false;$('root').value=ui.data_root;
- const phases={replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
- L.format('collection',()=>tr(phases[ui.phase]||ui.phase)+(debugMode?'':`\n${ui.frames.toLocaleString(L.locale)} frames · ${ui.sim_seconds.toFixed(2)} s`)+(ui.success?' · '+tr('성공'):''));L.text('record',ui.phase==='save_error'?'F7 저장 재시도':ui.recording?'F7 종료·저장·리셋':'F7 리셋 후 시작');$('record').disabled=debugMode||!ui.ready||ui.phase==='saving'||(!ui.recording&&(!ui.data_writable||ui.assets?.busy));$('reset').disabled=debugMode||!ui.ready||ui.phase==='saving';$('maxPower').disabled=debugMode;$('applyFolder').disabled=!ui.ready||ui.recording;$('folder').disabled=!ui.ready||ui.recording;
+ const request=++dashboardRequest,next=await api('/api/state');if(request!==dashboardRequest)return;ui=next;syncOutcome(ui);debugMode=Boolean(ui.debug_mode);updateWrist(ui.wrist_cameras);if(ui.enabled===false){$('sidebar').hidden=true;$('layout').classList.add('sidebar-hidden');$('toggleSidebar').hidden=true;return;}$('toggleSidebar').hidden=false;$('root').value=ui.data_root;
+ const manual=ui.success_mode==='manual',awaitingOutcome=ui.phase==='awaiting_outcome';
+ const sides=ui.enabled_sides;
+ L.text('workspaceNote',Array.isArray(sides)&&sides.length===1?(sides[0]==='left'?'왼손 Home 기준 · 단위 m':'오른손 Home 기준 · 단위 m'):'각 손의 Home 기준 · 양손 공통 · 단위 m');
+ $('workspaceReachHint').hidden=ui.simulator==='pomdar';
+ L.text('collectionPolicy',manual?'F7 종료 시 성공/실패 선택 · 리셋·중단은 실패로 저장.':'성공 시 자동 저장 · 수동 종료/리셋은 실패로 저장.');
+ if(ui.max_episode_frames&&ui.sample_hz)L.text('collectionLimit','Episode 최대 길이: {frames} steps · 약 {seconds}초.',{frames:ui.max_episode_frames,seconds:Math.round(ui.max_episode_frames/ui.sample_hz)});
+ else L.text('collectionLimit','Episode 최대 길이: 1,800 steps · 약 90초.');
+ for(const [side,id] of [['left','Left'],['right','Right']]){
+  const card=$('eef'+id+'X').closest('.eef-card');card.hidden=Array.isArray(ui.enabled_sides)&&!ui.enabled_sides.includes(side);
+  L.text(card.querySelector('strong'),ui.pose_reference==='hand_root'?(side==='left'?'왼손':'오른손'):(side==='left'?'왼팔':'오른팔'));
+ }
+ L.text(document.querySelector('.eef-heading>span'),ui.pose_reference==='hand_root'?'손 루트 · 월드':'EEF · World · Palm');
+ L.text('eefPoses',ui.pose_reference==='hand_root'?'손 루트 실제 위치와 자세 · 월드 좌표':'양팔 EEF 실제 위치와 자세 · 월드 좌표 · 손바닥 기준',{},'aria-label');
+ L.text('wristViews',Array.isArray(sides)&&sides.length===1?(sides[0]==='left'?'왼손 손목 카메라':'오른손 손목 카메라'):'좌우 손목 카메라',{},'aria-label');
+ const phases={replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',awaiting_outcome:'결과 선택 대기',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
+ L.format('collection',()=>tr(phases[ui.phase]||ui.phase)+(debugMode?'':`\n${ui.frames.toLocaleString(L.locale)} frames · ${ui.sim_seconds.toFixed(2)} s`)+(ui.success?' · '+tr('성공'):''));L.text('record',awaitingOutcome?'결과 선택 대기':ui.phase==='save_error'?'F7 저장 재시도':ui.recording?'F7 종료·저장·리셋':'F7 리셋 후 시작');$('record').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving'||(!ui.recording&&(!ui.data_writable||ui.assets?.busy));$('reset').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving';$('maxPower').disabled=debugMode;$('applyFolder').disabled=!ui.ready||ui.recording||awaitingOutcome;$('folder').disabled=!ui.ready||ui.recording||awaitingOutcome;
  if(syncedFolder!==ui.folder&&document.activeElement!==$('folder')){$('folder').value=ui.folder;syncedFolder=ui.folder;}
  if(syncedTask!==ui.task&&taskList.length){$('task').value=ui.task;syncedTask=ui.task;}
  L.bindMessage('error',ui.error||(!ui.data_writable?'데이터 root에 쓰기 권한이 없습니다.':''));syncHaptics(ui);syncWorkspace(ui);

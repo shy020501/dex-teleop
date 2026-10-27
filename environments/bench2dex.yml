@@ -1,6 +1,6 @@
 # Bench2Dex / Isaac Sim on Linux x86_64. Finish with scripts/setup_bench2dex.sh.
 # The separate pip step handles CUDA wheels, flatdict and editable Isaac Lab in order.
-name: dex-teleop-bench2dex
+name: bench2dex
 channels:
   - conda-forge
   - nodefaults

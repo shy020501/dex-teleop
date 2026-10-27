@@ -4,31 +4,40 @@ https://github.com/user-attachments/assets/a8af9684-e30b-4eae-89ca-b3d2ca1404fb
 
 Dex-teleop is a platform that connects input devices (e.g., MANUS Metaglove, HTC Vive Tracker) on Windows to dexterous robot simulators running on Linux servers for teleoperation and demonstration data collection.
 
-Designed for integration with different simulators, it currently supports [Bench2Dex](https://github.com/Bench2Dex/Bench2Dex) on [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/index.html)/[Isaac Lab](https://isaac-sim.github.io/IsaacLab/). A browser dashboard provides scene selection, camera views, recording, and replay.
-
-- **Arm control:** HTC Vive Tracker position and orientation tracking, with keyboard control also available.
-- **Finger control:** Map MANUS Metaglove Pro Haptic input to robot hands using DexPilot.
+- **Input:** MANUS Metaglove Pro Haptic finger tracking and keyboard hand translation with fixed orientation. HTC Vive Tracker reception and calibration are not yet implemented.
 - **Haptics:** Convert simulated finger contact forces into glove vibrations.
-- **Recording:** Store RGB images from the main and both wrist cameras, robot states and commands, and object states in HDF5.
+- **Recording:** Save camera images, robot and task states, commands, and episode metadata in HDF5.
+- **Dashboard:** Select tasks, download assets, view cameras, adjust controls, collect episodes, and inspect recordings and replays.
+
+## 📢 Updates
+
+- (2026.10.27) Added POMDAR on MuJoCo with ORCA hand control, haptics, recording, and comparison replay.
+- (2026.10.27) Initial release with support for MANUS gloves, keyboard input, and the Bench2Dex simulator.
+
+## 🧩 Simulations
+
+A shared Windows client and browser dashboard work across supported simulators, while each simulator handles its robot control and finger retargeting.
+
+| Simulation | Engine | Robot control | Finger retargeting |
+| --- | --- | --- | --- |
+| [Bench2Dex](https://github.com/Bench2Dex/Bench2Dex) | [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/index.html) / [Isaac Lab](https://isaac-sim.github.io/IsaacLab/) | Two arms with dexterous hands; arm inverse kinematics | DexPilot |
+| [POMDAR](https://github.com/srl-ethz/pomdar_benchmark) | [MuJoCo](https://mujoco.org/) | Single floating right ORCA hand, controlled through a MuJoCo mocap target | POMDAR ORCA retargeter |
 
 ## 📡 Communication
+
+Connections use SSH tunnels. Keep the **Windows control client** running during teleoperation: it handles glove input, HTC Vive Tracker pose input, browser keyboard input, and haptic output. The same client and connection settings work with both simulators.
 
 | Purpose | Protocol | Linux server | Windows client |
 | --- | --- | --- | --- |
 | Video, dashboard, browser key input | HTTP API / latest JPEG frame polling | `127.0.0.1:8080` | `127.0.0.1:18080` |
 | Control input, status, haptic feedback | ZeroMQ over TCP, REQ/REP | `127.0.0.1:5557` | `127.0.0.1:15557` |
 
-Connections use SSH tunnels. The **Windows control client** is also required for browser keyboard control.
-
-## 📢 Updates
-
-- (2026.10.27) Initial release with support for MANUS gloves, keyboard input, and the Bench2Dex simulator.
-
 ## 📋 Requirements
 
-- **Linux Server:**
-  - **Bench2Dex:** Ubuntu 22.04/24.04 x86_64, glibc ≥ 2.35, NVIDIA RTX GPU with a compatible driver, Conda, Git. Runtime: Python 3.11, Isaac Sim 5.1, Isaac Lab v2.3.2, PyTorch 2.7.0 + CUDA 12.8. [GPU requirements](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html)
-- **Windows:** Python 3.11 x64, PowerShell, OpenSSH, MANUS Core and Windows SDK 3.2.1.
+- **Linux Server:** Conda and Git, plus the requirements for your chosen simulator:
+  - **Bench2Dex:** Ubuntu 22.04/24.04 x86_64, glibc ≥ 2.35, NVIDIA RTX GPU with a compatible driver, Python 3.11, Isaac Sim 5.1, Isaac Lab v2.3.2, PyTorch 2.7.0 + CUDA 12.8. [GPU requirements](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html)
+  - **POMDAR:** Linux, NVIDIA GPU and driver with EGL support for headless rendering, Python 3.11, MuJoCo 3.3.7, CPU PyTorch 2.7.0.
+- **Windows:** Python 3.11 x64, PowerShell, OpenSSH; MANUS Core and Windows SDK 3.2.1 for glove input and haptics.
 
 ## 📦 Installation
 
@@ -56,19 +65,31 @@ ASSET_DIR="/mnt/storage/assets" \
 
 Skip this step to use local `data/` and `assets/` directories. External roots are saved as symlinks, so these variables are not needed again. Existing data and conflicting links are not overwritten.
 
-### 3. Bench2Dex setup
+Setup creates `data/<simulator>/` and `assets/<simulator>/`, using `bench2dex` or `pomdar` as the simulator name. For example, `DATASET_DIR=/mnt/storage/data` places POMDAR recordings under `/mnt/storage/data/pomdar`.
 
-Each simulator uses its own Conda environment, with shared teleoperation dependencies added to its simulation requirements.
+### 3. Simulator setup
+
+Install the simulators you want to use. Each has a separate Conda environment containing its simulation and teleoperation dependencies.
+
+#### Bench2Dex
 
 ```bash
 conda env create -f environments/bench2dex.yml
-conda activate dex-teleop-bench2dex
+conda activate bench2dex
 bash scripts/setup_bench2dex.sh
 ```
 
-This creates `bench2dex/` under each storage root: for example, `DATASET_DIR=/mnt/storage/data` gives `/mnt/storage/data/bench2dex`. Additional simulator integrations can create their own subdirectories under the same roots.
+Installs Bench2Dex sources and patches, Isaac Sim/Isaac Lab, and teleoperation dependencies, then downloads assets for the default task, `86_short_jigsaw_puzzle`. Versions are pinned in [sources.lock.json](configs/sources.lock.json) and [constraints-bench2dex.txt](requirements/constraints-bench2dex.txt).
 
-The script installs Bench2Dex sources and patches, Isaac Sim/Isaac Lab, and [shared teleoperation dependencies](requirements/teleop.txt), then downloads the USD files, textures, and URDFs for the default scene, `86_short_jigsaw_puzzle`. Versions are pinned in [sources.lock.json](configs/sources.lock.json) and [constraints-bench2dex.txt](requirements/constraints-bench2dex.txt).
+#### POMDAR
+
+```bash
+conda env create -f environments/pomdar.yml
+conda activate pomdar
+bash scripts/setup_pomdar.sh
+```
+
+Installs MuJoCo, CPU PyTorch, and teleoperation dependencies in the active `pomdar` environment, then fetches pinned POMDAR sources and the ORCA/selected-task assets. The default task is `V1_Wheel`. See [requirements/pomdar.txt](requirements/pomdar.txt) for Python package dependencies.
 
 ## 🚀 Quick start
 
@@ -76,26 +97,35 @@ Replace `{user}@{teleop-server-ip}` with your SSH login and server address, and 
 
 ### 1. Linux server
 
-From the project directory with the `dex-teleop-bench2dex` Conda environment active:
+From the project directory, activate the environment for the simulator you want to run.
+
+**Bench2Dex:**
 
 ```bash
-./scripts/run_teleop.sh
-```
-
-The default run has no step limit and restores the last selected scene (initial default: `86_short_jigsaw_puzzle`). To override settings:
-
-```bash
-# Choose a GPU and timing window.
-DEX_TELEOP_GPU_INDEX=1 TIMING_WINDOW=60 ./scripts/run_teleop.sh
-
-# Choose a scene and set a simulation step limit.
-./scripts/run_teleop.sh --task 86_short_jigsaw_puzzle --steps 3600
-
-# Select a Linux server profile from configs/ (or use a full config path).
+conda activate bench2dex
 ./scripts/run_teleop.sh --config bench2dex.yaml
 ```
 
-`--steps N` sets the simulation step limit; `--steps 0` (default) disables it. Environment variables and command-line options can be combined. See [Runtime configuration](#-runtime-configuration) for more settings. Use `./scripts/run_browser.sh` for viewing only.
+**POMDAR:**
+
+```bash
+conda activate pomdar
+./scripts/run_teleop.sh --config pomdar.yaml
+```
+
+Omitting `--config` selects Bench2Dex. Each simulator restores its last selected task and runs without a step limit by default. Stop the current server before switching simulators on the same ports.
+
+To override settings, add environment variables or command-line options:
+
+```bash
+# Choose a GPU and timing window.
+DEX_TELEOP_GPU_INDEX=1 TIMING_WINDOW=60 ./scripts/run_teleop.sh --config pomdar.yaml
+
+# Choose a task and set a simulation step limit.
+./scripts/run_teleop.sh --config pomdar.yaml --task V1_Wheel --steps 5000
+```
+
+Both simulators accept `--task` and `--steps`. `--steps N` limits physics steps; `--steps 0` disables the limit. `--config` accepts a filename in `configs/` or a full path. Use `./scripts/run_browser.sh --config pomdar.yaml` for viewing only, substituting the profile as needed. See [Runtime configuration](#-runtime-configuration) for more settings.
 
 ### 2. Windows setup and SSH tunnel
 
@@ -124,34 +154,49 @@ The client runs directly in PowerShell without opening a separate window. Add `-
 
 | Key | Action |
 | --- | --- |
-| `F1` / `F2` | Select right / left hand |
+| `F1` / `F2` | Select right / left hand when available; POMDAR supports only the right hand |
 | `W` / `S` | Move along world `+Y` / `-Y` |
 | `A` / `D` | Move along world `-X` / `+X` |
 | `Space` / `Shift` | Move along world `+Z` / `-Z` |
 | `F6` | Reset the scene. If recording, save as a failed episode before resetting |
-| `F7` | Reset and start recording / if recording, save as a failed episode and stop |
+| `F7` | Reset and start recording / stop recording (see outcome handling below) |
 
-Controls are disabled when focus is lost. Successful tasks are saved automatically, with a limit of 1,800 frames per episode.
-Configure movement limits, recording folders, and haptics in the dashboard.
+Controls are disabled when focus is lost. Configure movement limits, recording folders, and haptics in the dashboard. Episode outcomes depend on the simulator:
+
+- **Bench2Dex:** Tasks with automatic success evaluation finish and save on success. Manual stops and resets save as failure.
+- **POMDAR:** Press `F7` to stop recording, then select **Success** or **Failure** in the popup. The scene and recording pause at the stop frame until you choose; the episode is then saved and the scene resets. Reloading the browser reopens the pending choice. Resets, interruptions (including server shutdown while waiting for a choice), and the frame limit save as failure. Outcomes are operator judgments; automatic success detection and official POMDAR benchmark scoring are not implemented.
+
+### Recorded data and replay
+
+Recordings are saved under `data/<simulator>/` in the dashboard's selected subfolder. Open an episode in the **Data** tab to inspect its metadata and generate a replay comparing recorded images, restored states, and simulated actions. Control and recording pause during replay generation.
+
+State and action layouts depend on the simulator. POMDAR records MuJoCo joint positions/velocities, actuator commands, separate hand-pose targets, full integration states, and control changes between sampled frames. Inspect each episode's metadata for its dimensions and control units.
 
 ## 🔧 Runtime configuration
 
-Set environment variables before the launch command. Legacy `BENCH2DEX_*` variables are also supported; `DEX_TELEOP_*` takes precedence.
+Set environment variables before the launch command. Activate the chosen simulator's Conda environment in each new terminal.
 
 | Environment variable | Default | Description |
 | --- | --- | --- |
-| `DEX_TELEOP_GPU_INDEX` | `0` | Physical GPU index |
+| `DEX_TELEOP_GPU_INDEX` | `0` | Physical GPU index; selects EGL rendering for POMDAR |
 | `TIMING_WINDOW` | `120` | Number of recent steps used for timing averages; positive integer |
-| `DEX_TELEOP_EXECUTION_MODE` | `split` | `split`: separate physics/control and rendering processes; `serial`: single process |
+| `DEX_TELEOP_EXECUTION_MODE` | `split` | Bench2Dex only: separate physics/control and rendering processes, or `serial` for one process |
 | `DEBUG_MODE` | `false` | `true`: preview the initial static scene |
-| `DEX_TELEOP_PYTHON` | `python` | Python executable for the Isaac environment |
-| `DEX_TELEOP_BROWSER_FPS` | `24` | Browser video generation rate limit, 1–30 |
-| `DEX_TELEOP_BROWSER_QUALITY` | `75` | JPEG quality, 30–95 |
+| `DEX_TELEOP_PYTHON` | `python` | Python executable used by the launcher |
+| `DEX_TELEOP_POMDAR_PYTHON` | Launcher's interpreter | Optional POMDAR runtime executable override |
+| `DEX_TELEOP_BROWSER_FPS` | `24` | Bench2Dex only: browser video generation rate limit, 1–30 |
+| `DEX_TELEOP_BROWSER_QUALITY` | `75` | Bench2Dex only: JPEG quality, 30–95 |
 
-Physics runs at 60 Hz and control/recording at 20 Hz in simulation time. The UI shows the mean simulation timestep, wall-clock period, and real-time factor over the last N steps.
+| Default setting | Bench2Dex | POMDAR |
+| --- | --- | --- |
+| Physics rate | 60 Hz | 500 Hz |
+| Control rate | 20 Hz | 60 Hz |
+| Recording rate | 20 Hz | 20 Hz |
+| Cameras | Main + two wrist cameras | Main + one right-wrist camera |
 
-`split` runs two Isaac processes on the same GPU and uses more GPU memory. GPU functionality and performance still require separate validation.
+Rates are in simulation time. The timing overlay shows the average simulation timestep, wall-clock period, and real-time factor over `TIMING_WINDOW` steps.
 
-Linux launchers select the simulator from a server profile, defaulting to [configs/bench2dex.yaml](configs/bench2dex.yaml). Use `--config bench2dex.yaml` or a custom config path. Activate the selected simulator's Conda environment before launching. Camera and recording settings are in [configs/bench2dex/dashboard_collect.yaml](configs/bench2dex/dashboard_collect.yaml).
+- **Bench2Dex:** Control and haptics are configured in [configs/bench2dex.yaml](configs/bench2dex.yaml); cameras and recording in [dashboard_collect.yaml](configs/bench2dex/dashboard_collect.yaml). `split` runs two Isaac processes on the same GPU and uses more GPU memory. The launcher also accepts legacy `BENCH2DEX_*` aliases, with `DEX_TELEOP_*` taking precedence.
+- **POMDAR:** [configs/pomdar.yaml](configs/pomdar.yaml) configures control, retargeting, haptics, simulation rates, cameras, JPEG quality, and the 1,800-frame episode limit. Preview defaults to 20 Hz. Physics and retargeting run on the CPU; the selected GPU renders cameras through EGL.
 
-Windows uses [configs/client.yaml](configs/client.yaml) for connection, device, key, and local haptic settings. It receives control speed, available hands, poses, workspace limits, and haptic support from the server. Switching compatible simulators requires no Windows config or command changes when the connection endpoints stay the same; release movement keys before resuming after reconnecting. Each additional simulator needs a Linux integration that implements the common teleoperation protocol; Bench2Dex is currently the available integration.
+Windows uses [configs/client.yaml](configs/client.yaml) for connection, device, key, and local haptic settings. Control speed, available hands, poses, workspace limits, and haptic support come from the Linux server. Switching compatible simulators requires no Windows configuration or command changes when the endpoints stay the same; release movement keys before resuming after reconnecting.
