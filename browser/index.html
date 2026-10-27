@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dex-teleop</title>
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#17232e;--line:#344252;--muted:#a4b2bf;--accent:#74d8bc}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:#e4ebf2;font:14px system-ui;display:flex;flex-direction:column;height:100dvh;overflow:hidden}header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#1d2935;border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}header strong{font-size:18px}button{background:#293e50;color:inherit;border:1px solid #4b6174;border-radius:5px;padding:7px 11px;cursor:pointer;font:inherit}button:hover{background:#354e63}button:disabled{opacity:.4;cursor:default}button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.header-actions{display:flex;gap:8px;margin-left:auto}#status{color:#9fd8c5;font-size:13px}#stats{color:var(--muted);font-size:12px}.layout{display:grid;grid-template-columns:360px minmax(0,1fr);flex:1;min-height:0}.layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)}aside{display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line);min-width:0}.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);flex:none;padding:0 12px}.tabs button{flex:1;border:0;border-radius:0;border-bottom:2px solid transparent;background:none;padding:13px 8px;color:var(--muted)}.tabs button.active{border-bottom-color:var(--accent);color:#f2fffb}.panel{min-height:0;overflow:auto;flex:1;padding:0 16px 16px}.setting-section{padding:18px 0;border-bottom:1px solid var(--line)}.setting-section:last-child{border-bottom:0}h2{font-size:14px;margin:0 0 12px;font-weight:600}label{display:block;margin:10px 0 6px;color:#c3ced8;font-size:12px}input,select{width:100%;background:#0e1923;color:inherit;border:1px solid #526579;padding:8px;border-radius:5px;font:inherit}input[type=range]{padding:0;accent-color:var(--accent)}input[readonly]{color:var(--muted);font-size:11px}.row{display:flex;gap:8px;margin-top:10px}.row button{flex:1}.muted{font-size:12px;color:var(--muted);line-height:1.6;overflow-wrap:anywhere}.hint{margin:10px 0 0}.badge{padding:12px;background:#213444;border-radius:6px;white-space:pre-line;line-height:1.6;font-size:13px}.range-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}.range-heading output{color:var(--accent);font-variant-numeric:tabular-nums}.feedback{flex:none;padding:0 16px}#error{color:#ffb6ac;white-space:pre-wrap;font-size:12px;margin:8px 0}#error:empty,#toast:empty{display:none}#toast{color:#e6c78e;font-size:12px;margin:8px 0}.screen{min-height:0;min-width:0;background:#070d12}main{height:100%;width:100%;display:grid;place-items:center;outline:none}main:focus{box-shadow:inset 0 0 0 1px #74d8bc66}img{display:block;width:100%;height:100%;object-fit:contain;min-height:0;min-width:0}main:fullscreen{background:#070d12}
+#dataPanel{padding:0;display:flex;flex-direction:column}.explorer-toolbar{display:flex;align-items:center;gap:8px;padding:12px 14px 4px;flex:none}.explorer-toolbar h2{margin:0;flex:1}.tool-button{padding:3px 7px;background:transparent;border-color:transparent;font-size:16px}.storage-summary{white-space:pre-line;font-size:12px;color:var(--muted);padding:5px 14px 10px;line-height:1.6;flex:none}.tree{overflow:auto;min-height:0;flex:1;padding:2px 0 18px;font-size:12px}.tree-folder{margin:0}.tree-row{display:flex;align-items:center;gap:6px;min-height:29px;white-space:nowrap;width:100%;border:0;border-radius:0;background:none;text-align:left;padding:4px 12px 4px calc(12px + var(--depth,0)*16px);font:inherit;cursor:pointer;color:inherit}.tree-row:hover{background:#ffffff09}.tree-row.selected{background:#314e62}.tree-row:focus-visible{outline:-webkit-focus-ring-color auto 1px;outline:1px solid var(--accent);outline-offset:-1px}.tree-row::-webkit-details-marker{display:none}.tree-row::marker{content:''}.chevron{display:inline-block;width:10px;height:10px;flex:none}.chevron::before{content:'';display:block;border-right:1.5px solid #acb8c3;border-bottom:1.5px solid #acb8c3;width:5px;height:5px;transform:rotate(-45deg);margin:2px}.tree-folder[open]>.tree-row .chevron::before{transform:rotate(45deg)}.tree-icon{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}.folder-icon{color:#8cabc4}.file-icon.success{color:var(--accent)}.file-icon.fail{color:#c9a280}.node-name{min-width:0;overflow:hidden;text-overflow:ellipsis;flex:1}.node-size{color:#91a5b5;font-size:11px;margin-left:5px;flex:none;font-variant-numeric:tabular-nums}.tree-empty{padding:7px 14px 10px calc(28px + var(--depth,0)*16px);font-size:12px;color:#8295a4}.folder-current>.tree-row .node-name{color:#b2f1df}.root-row{font-weight:600}.root-row .node-size{font-weight:400}dialog{background:var(--panel);color:inherit;border:1px solid #66788a;border-radius:8px;max-width:85vw;width:700px;max-height:85vh}dialog::backdrop{background:#0009}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}#downloadStatus{margin-top:10px;font-size:12px}#cancelDownload{margin-top:8px}
+@media(max-width:900px){.layout{grid-template-columns:300px minmax(0,1fr)}header{padding:8px;gap:8px}#stats{order:3;width:100%}}@media(max-width:600px){.layout{grid-template-columns:min(82vw,340px) minmax(0,1fr)}header strong{font-size:15px}.header-actions button{font-size:12px;padding:6px}}
+
+main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:min(440px,46%);border:1px solid #607386;background:#111e2bef;border-radius:7px;box-shadow:0 3px 14px #0005;overflow:hidden;z-index:2}.wrist-toolbar{display:flex;align-items:center;justify-content:space-between;padding:6px 9px;font-size:12px;color:#c3d0da;gap:6px}.wrist-toolbar button{padding:2px 7px;font-size:11px;background:transparent;border-color:#526579}.wrist-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#3a4a58}.wrist-card{margin:0;background:#071018;min-width:0}.wrist-card figcaption{padding:5px 8px;font-size:12px;color:#d4e4ef;background:#1b2b39}.wrist-image{position:relative;width:100%;aspect-ratio:4/3}.wrist-image img{width:100%;height:100%;object-fit:contain}.wrist-state{position:absolute;inset:0;display:grid;place-items:center;color:#cad5dd;font-size:12px;background:#0b131bcc}.wrist-image.fresh .wrist-state{display:none}.wrist-views.collapsed{width:auto;min-width:170px}@media(max-width:900px){.wrist-views{width:min(190px,40%);top:8px;right:8px}.wrist-grid{grid-template-columns:1fr}.wrist-toolbar{padding:5px;font-size:11px}}
+.layout{position:relative;--sidebar-width:360px;grid-template-columns:var(--sidebar-width) minmax(0,1fr)}.layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)}
+.sidebar-edge{position:absolute;left:var(--sidebar-width);top:50%;transform:translateY(-50%);z-index:4;width:24px;height:66px;padding:0;border-radius:0 6px 6px 0;background:#293e50;box-shadow:1px 0 6px #0005;font:18px system-ui}.sidebar-hidden .sidebar-edge{left:0}
+.task-criteria{height:194px;margin-top:12px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;background:#101d28}.criteria-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px;flex:none}.criteria-heading small{color:var(--accent);white-space:nowrap;font-size:11px}.criteria-copy{overflow:auto;min-height:0;padding:10px;font-size:12px;line-height:1.65;color:#b8c8d5;scrollbar-width:thin}.criteria-copy p{margin:0;color:#e3edf4}.criteria-copy ul{padding-left:17px;margin:8px 0 0}.criteria-copy li+li{margin-top:5px}.task-actions{display:grid;grid-template-columns:1fr 1fr}.task-actions button{min-width:0;white-space:nowrap;font-size:12px}
+#details{padding:0;width:880px;height:min(820px,88dvh);max-height:88dvh;max-width:calc(100vw - 40px);overflow:hidden}#details[open]{display:flex;flex-direction:column}.episode-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px;border-bottom:1px solid var(--line);flex:none}.episode-heading h2{font-size:18px;margin:0 0 7px}.episode-filename{font:12px ui-monospace,monospace;color:var(--muted);overflow-wrap:anywhere;margin:0}.outcome{padding:5px 10px;border-radius:20px;font-size:12px;white-space:nowrap;background:#304453}.outcome.success{background:#244b40;color:#a4ebcd}.outcome.fail{background:#503d2a;color:#f0cb99}.episode-scroll{min-height:0;overflow:auto;flex:1;padding:20px}.summary-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 18px}.summary-card{padding:12px;background:#203342;border:1px solid #3d5262;border-radius:7px;min-width:0}.summary-card dt{font-size:12px;color:var(--muted);margin-bottom:7px}.summary-card dd{margin:0;font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.summary-card small{display:block;font-size:11px;color:#9db4c4;margin-top:5px;min-height:16px}.episode-facts{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px 10px;margin:0;font-size:12px}.episode-facts dt{color:var(--muted)}.episode-facts dd{margin:0;overflow-wrap:anywhere}.schema-section{border-top:1px solid var(--line);margin-top:20px;padding-top:18px}.schema-section h3{font-size:14px;margin:0 0 12px}.schema-tree{border:1px solid var(--line);border-radius:6px;background:#0e1a24;padding:8px 10px}.schema-group{margin:0}.schema-row{display:flex;align-items:baseline;gap:9px;padding:5px 0;min-height:29px;font-size:12px;flex-wrap:wrap}.schema-group>summary{cursor:pointer;list-style:none}.schema-group>summary::-webkit-details-marker{display:none}.schema-arrow{width:7px;height:7px;border-right:1px solid #97aabe;border-bottom:1px solid #97aabe;transform:rotate(-45deg);align-self:center;flex:none;margin-right:2px}.schema-group[open]>summary>.schema-arrow{transform:rotate(45deg)}.schema-name{font:12px ui-monospace,monospace;color:#d5e6f1}.schema-description{color:#95aaba}.schema-shape{margin-left:auto;color:#8bcdb8;font:11px ui-monospace,monospace}.schema-children{border-left:1px solid #2b4050;margin-left:3px;padding-left:17px}.schema-leaf{padding-left:18px}.dialog-actions{display:flex;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid var(--line);flex:none}.dialog-actions #deleteEpisode{background:transparent;color:#dfb49f;border-color:#6a5146}.dialog-actions #closeDetails{min-width:90px}
+@media(max-width:900px){.layout{--sidebar-width:300px}}@media(max-width:600px){.layout{--sidebar-width:min(82vw,340px)}.summary-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.episode-heading,.episode-scroll{padding:14px}.episode-facts{grid-template-columns:72px minmax(0,1fr)}.schema-shape{margin-left:0}.task-actions button{padding:7px 6px}}
+.haptic-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}.haptic-heading h2{margin:0}.haptic-switch{display:flex;align-items:center;gap:7px;padding:3px 0;border:0;background:none;font-size:12px;color:var(--muted)}.haptic-switch:hover{background:none}.switch-track{width:30px;height:18px;border-radius:12px;background:#455868;padding:3px;display:block}.switch-track::after{content:'';display:block;width:12px;height:12px;border-radius:50%;background:#d9e4ec;transition:transform .12s}.haptic-switch[aria-checked=true]{color:var(--accent)}.haptic-switch[aria-checked=true] .switch-track{background:#326b5c}.haptic-switch[aria-checked=true] .switch-track::after{transform:translateX(12px);background:var(--accent)}
+.force-caption{font-size:12px;color:#c3ced8}.force-range{position:relative;height:34px;margin-top:5px}.force-rail{position:absolute;left:9px;right:9px;top:15px;height:4px;background:#405365;border-radius:3px}.force-fill{position:absolute;height:100%;background:var(--accent);border-radius:3px}.force-range input[type=range]{position:absolute;inset:0;width:100%;height:34px;margin:0;padding:0;border:0;background:transparent;appearance:none;-webkit-appearance:none;pointer-events:none;outline:none}.force-range input::-webkit-slider-runnable-track{height:4px;background:transparent}.force-range input::-moz-range-track{height:4px;background:transparent}.force-range input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;pointer-events:auto;width:18px;height:18px;margin-top:-7px;border:2px solid #d7fff2;border-radius:50%;background:var(--accent);box-shadow:0 1px 4px #0007;cursor:grab}.force-range input::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border:2px solid #d7fff2;border-radius:50%;background:var(--accent);box-shadow:0 1px 4px #0007;cursor:grab}.force-range input:focus-visible::-webkit-slider-thumb{outline:2px solid #f0fffb;outline-offset:3px}.force-range input:focus-visible::-moz-range-thumb{outline:2px solid #f0fffb;outline-offset:3px}.force-range input:disabled::-webkit-slider-thumb{pointer-events:none;cursor:default}.force-range input:disabled::-moz-range-thumb{pointer-events:none;cursor:default}.force-range #forceMax{z-index:2}.force-ticks{display:flex;justify-content:space-between;color:#8299aa;font-size:11px;margin:0 0 8px}.force-values{display:grid;grid-template-columns:1fr 1fr;gap:12px}.force-values label{margin:0 0 5px}.force-number{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}.force-number input{min-width:0;font-size:13px;font-variant-numeric:tabular-nums;padding:6px 8px}.haptic-help{margin-top:9px;font-size:11px}.haptic-advanced{margin-top:12px;font-size:12px;color:var(--muted)}.haptic-advanced summary{cursor:pointer;width:fit-content}.haptic-advanced .range-heading{margin-top:12px}.haptic-muted .force-fill{background:#778e9e}#hapticSettings input:disabled{opacity:.45}.haptic-advanced input[type=range]{display:block}
+.workspace-note{margin:-3px 0 10px;font-size:11px;color:var(--muted)}.workspace-grid{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center}.workspace-grid .column-name{font-size:11px;color:var(--muted);text-align:center}.workspace-axis{font-size:12px;color:#d4e2ec}.workspace-axis small{display:block;color:#91a5b5;font-size:10px;margin-top:3px}.workspace-grid input{min-width:0;padding:6px 7px;font-size:13px;font-variant-numeric:tabular-nums}.workspace-hint{margin-top:8px;font-size:11px}.workspace-message{min-height:18px;font-size:11px;color:var(--muted);margin-top:8px}.workspace-message.unsaved{color:#e6c78e}#workspaceSettings input:disabled{opacity:.45}#workspaceSettings .row button{font-size:12px}
+
+.episode-title{min-width:0}.episode-title-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;min-height:34px;margin-bottom:7px}.episode-title-line h2{margin:0}.episode-heading-actions{flex:none}.episode-heading-actions button{white-space:nowrap}
+#details.replay-open{width:1220px}#details.replay-open .episode-scroll{display:none}
+#replayPanel{flex:1;min-height:0;overflow:auto;padding:18px}#replayPanel[hidden]{display:none}
+.replay-options,.replay-controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}.replay-options select{width:auto}
+.replay-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.replay-pair figure{margin:0;min-width:0}.replay-pair img{width:100%;aspect-ratio:16/9;object-fit:contain;background:#050b10}.replay-pair figcaption{font-size:12px;margin:0 0 8px;color:var(--muted)}
+.replay-controls{margin-top:12px}.replay-controls input{flex:1;width:auto}.replay-job{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-width:0}.replay-job span{font-size:12px;overflow-wrap:anywhere}#replayStep{font:12px ui-monospace,monospace}#replayMetrics,#replayNote{font-size:12px}#replayNote{color:var(--muted)}
+.language-switch{display:flex;align-items:center;gap:1px;border:1px solid #4b6174;border-radius:5px;padding:0 3px;flex:none}.language-switch button{padding:6px 7px;background:transparent;border:0;color:var(--muted);font-size:12px}.language-switch button.active{color:var(--accent);font-weight:700}.language-switch span{color:#607386;font-size:12px}.header-actions{align-items:center}.workspace-grid{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.workspace-axis{overflow-wrap:anywhere}.timing-values{gap:0 8px}.timing-values output{white-space:nowrap}.timing-heading{gap:8px}.replay-options select{min-width:0;max-width:100%}
+</style>
+<style>
+.view-telemetry{position:absolute;top:12px;left:12px;width:min(512px,calc(100% - min(440px,46%) - 36px));display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;z-index:2;pointer-events:none}
+.eef-poses{flex:1 1 230px;min-width:0;max-width:100%;pointer-events:none;background:#101c28d9;border:1px solid #52677a;border-radius:6px;padding:8px 10px;box-shadow:0 2px 10px #0003}
+.eef-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#9fb4c4}.eef-heading span:last-child{color:#93cdb6}.eef-poses.stale .eef-heading span:last-child{color:#c7b48d}
+.eef-card{margin-top:7px}.eef-card strong{display:block;font-size:11px;font-weight:500;color:#d6e5ee;margin-bottom:3px}.eef-values{display:grid;grid-template-columns:44px repeat(3,minmax(0,1fr));gap:3px;font:11px ui-monospace,monospace;font-variant-numeric:tabular-nums;line-height:1.6}.eef-values span{color:#91a9bc;font-size:10px}.eef-values output{text-align:right;white-space:nowrap}
+.step-timing{flex:1 1 215px;min-width:0;max-width:100%;pointer-events:auto;background:#101c28e8;border:1px solid #52677a;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.7;font-variant-numeric:tabular-nums}.timing-heading{display:flex;justify-content:space-between;gap:16px;color:#9fb4c4;font-size:10px;margin-bottom:3px}#timingState{color:var(--accent)}.step-timing.stale #timingState{color:#c7b48d}.timing-values{display:grid;grid-template-columns:auto auto;gap:0 14px}.timing-values span{color:#9fb4c4}.timing-values output{text-align:right}
+@media(max-width:900px){.view-telemetry{top:8px;left:8px;width:min(512px,calc(100% - min(190px,40%) - 24px))}.eef-poses{padding:6px}.eef-values{font-size:10px;grid-template-columns:38px repeat(3,minmax(0,1fr));gap:2px}}
+</style>
+</head>
+<body>
+<header>
+<strong>dex-teleop</strong><span id="status" data-i18n="화면 연결 중…">Connecting to video…</span><small id="stats"></small>
+<div class="header-actions">
+<div class="language-switch" role="group" aria-label="Language" data-i18n-aria-label="언어"><button id="languageEn" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button><span aria-hidden="true">/</span><button id="languageKo" data-language="ko" lang="ko" aria-label="한국어" aria-pressed="false">KR</button></div>
+<button id="pause" data-i18n="일시정지">Pause</button>
+<button id="full" data-i18n="전체화면">Fullscreen</button>
+</div>
+</header>
+<div class="layout" id="layout">
+<button id="toggleSidebar" class="sidebar-edge" aria-controls="sidebar" aria-expanded="true" aria-label="Hide explorer" data-i18n-aria-label="탐색기 닫기" title="Hide explorer" data-i18n-title="탐색기 닫기">&lt;</button>
+<aside id="sidebar">
+<div class="tabs" role="tablist" aria-label="Workspace panels" data-i18n-aria-label="작업 패널"><button id="settingsTab" class="active" role="tab" aria-selected="true" aria-controls="settingsPanel" data-i18n="수집 세팅">Collection settings</button><button id="dataTab" role="tab" aria-selected="false" aria-controls="dataPanel" data-i18n="데이터">Data</button></div>
+<div id="settingsPanel" class="panel" role="tabpanel" aria-labelledby="settingsTab">
+<section class="setting-section"><h2 data-i18n="Task 설정">Task settings</h2><select id="task" aria-label="Select task" data-i18n-aria-label="Task 선택"></select><div class="task-criteria"><div class="criteria-heading"><span data-i18n="성공 조건">Success criteria</span><small id="taskDwell"></small></div><div id="taskDescription" class="criteria-copy" tabindex="0"></div></div><div class="row task-actions"><button id="applyTask" data-i18n="Task 적용">Apply task</button><button id="downloadTask" disabled data-i18n="Asset 다운로드">Download assets</button></div><div id="downloadStatus" class="badge" hidden></div><button id="cancelDownload" hidden data-i18n="다운로드 취소">Cancel download</button></section>
+<section class="setting-section"><h2 data-i18n="Episode 수집">Episode collection</h2><div id="collection" class="badge" data-i18n="연결 중…">Connecting…</div><div class="row"><button id="record" data-i18n="F7 리셋 후 시작">F7 Reset &amp; record</button><button id="reset" data-i18n="F6 전체 리셋">F6 Reset all</button></div><p class="muted hint"><span data-i18n="성공 시 자동 저장 · 수동 종료/리셋은 실패로 저장.">Auto-save on success. Manual stop or reset saves as failure.</span><br><span data-i18n="Episode 최대 길이: 1,800 steps · 약 90초.">Episode limit: 1,800 steps · about 90 s.</span></p></section>
+<section id="workspaceSettings" class="setting-section"><h2 data-i18n="이동 범위">Movement limits</h2>
+<p class="workspace-note" data-i18n="각 손의 Home 기준 · 양손 공통 · 단위 m">Relative to each hand's Home · both hands · meters</p>
+<form id="workspaceForm">
+<div class="workspace-grid">
+<span class="column-name" data-i18n="축">Axis</span><span class="column-name" data-i18n="최소 (−)">Min (−)</span><span class="column-name" data-i18n="최대 (+)">Max (+)</span>
+<div class="workspace-axis"><span data-i18n="X · 좌우">X · Left/right</span><small id="workspaceKeysX">A / D</small></div><input id="workspaceMinX" type="number" step="0.01" min="-2" max="0" value="-0.35" required aria-label="Minimum X offset from Home (m)" data-i18n-aria-label="X축 최소 이동 위치 (Home 기준 m)"><input id="workspaceMaxX" type="number" step="0.01" min="0" max="2" value="0.35" required aria-label="Maximum X offset from Home (m)" data-i18n-aria-label="X축 최대 이동 위치 (Home 기준 m)">
+<div class="workspace-axis"><span data-i18n="Y · 앞뒤">Y · Forward/back</span><small id="workspaceKeysY">S / W</small></div><input id="workspaceMinY" type="number" step="0.01" min="-2" max="0" value="-0.15" required aria-label="Minimum Y offset from Home (m)" data-i18n-aria-label="Y축 최소 이동 위치 (Home 기준 m)"><input id="workspaceMaxY" type="number" step="0.01" min="0" max="2" value="0.35" required aria-label="Maximum Y offset from Home (m)" data-i18n-aria-label="Y축 최대 이동 위치 (Home 기준 m)">
+<div class="workspace-axis"><span data-i18n="Z · 위아래">Z · Up/down</span><small id="workspaceKeysZ">Shift / Space</small></div><input id="workspaceMinZ" type="number" step="0.01" min="-2" max="0" value="-0.50" required aria-label="Minimum Z offset from Home (m)" data-i18n-aria-label="Z축 최소 이동 위치 (Home 기준 m)"><input id="workspaceMaxZ" type="number" step="0.01" min="0" max="2" value="0.15" required aria-label="Maximum Z offset from Home (m)" data-i18n-aria-label="Z축 최대 이동 위치 (Home 기준 m)">
+</div>
+<div class="muted workspace-hint" data-i18n="범위를 넓혀도 로봇의 도달 한계는 유지됩니다.">Increasing these limits does not extend the robot's reach.</div>
+<div class="row"><button id="applyWorkspace" type="submit" disabled data-i18n="범위 적용">Apply limits</button><button id="resetWorkspace" type="button" data-i18n="기본값">Defaults</button></div>
+<div id="workspaceMessage" class="workspace-message" role="status"></div>
+</form></section>
+<section id="hapticSettings" class="setting-section">
+<div class="haptic-heading"><h2>Haptic feedback</h2><button id="hapticEnabled" class="haptic-switch" role="switch" aria-label="Haptic feedback" aria-checked="true"><span id="hapticEnabledLabel" data-i18n="켜짐">On</span><span class="switch-track" aria-hidden="true"></span></button></div>
+<div id="forceCaption" class="force-caption" data-i18n="접촉력 범위">Contact force range</div>
+<div class="force-range" role="group" aria-labelledby="forceCaption"><div class="force-rail"><div id="forceFill" class="force-fill"></div></div>
+<input id="forceMin" type="range" min="0" max="20" step="0.05" value="0.15" aria-label="Force at vibration onset (N)" data-i18n-aria-label="진동 시작 접촉력 (N)">
+<input id="forceMax" type="range" min="0" max="20" step="0.05" value="3" aria-label="Force at maximum vibration (N)" data-i18n-aria-label="최대 진동 접촉력 (N)"></div>
+<div class="force-ticks" aria-hidden="true"><span>0 N</span><span id="forceLimitLabel">20 N</span></div>
+<div class="force-values">
+<div><label for="forceMinValue" data-i18n="진동 시작">Vibration onset</label><div class="force-number"><input id="forceMinValue" type="number" min="0" max="19.95" step="0.05" value="0.15"><span>N</span></div></div>
+<div><label for="forceMaxValue" data-i18n="최대 진동">Maximum vibration</label><div class="force-number"><input id="forceMaxValue" type="number" min="0.05" max="20" step="0.05" value="3.00"><span>N</span></div></div>
+</div>
+<div class="muted haptic-help" data-i18n="최소 이하 0 · 최대 이상 최대 진동">Zero below minimum · full vibration above maximum</div>
+<details id="hapticAdvanced" class="haptic-advanced"><summary data-i18n="고급 설정">Advanced settings</summary><label class="range-heading" for="maxPower"><span data-i18n="최대 진동">Maximum vibration</span><output id="maxPowerLabel" for="maxPower">0.35</output></label><input id="maxPower" type="range" min="0" max="1" value="0.35" step="0.01"><div class="force-ticks" aria-hidden="true"><span>0.00</span><span>1.00</span></div></details>
+</section>
+<section class="setting-section"><h2 data-i18n="저장 위치">Save location</h2><label for="root" data-i18n="Root (고정)">Root (fixed)</label><input id="root" readonly><label for="folder" data-i18n="하위 폴더">Subfolder</label><input id="folder" placeholder="Default: task name" data-i18n-placeholder="기본값: task 이름"><div class="row"><button id="applyFolder" data-i18n="폴더 적용">Apply folder</button></div></section>
+</div>
+<div id="dataPanel" class="panel" role="tabpanel" aria-labelledby="dataTab" hidden><div class="explorer-toolbar"><h2 data-i18n="데이터">Data</h2><button id="collapseTree" class="tool-button" title="Collapse all folders" data-i18n-title="모든 폴더 접기" aria-label="Collapse all folders" data-i18n-aria-label="모든 폴더 접기">⊟</button><button id="refresh" class="tool-button" title="Refresh" data-i18n-title="새로고침" aria-label="Refresh data" data-i18n-aria-label="데이터 새로고침">↻</button></div><div id="counts" class="storage-summary"></div><div id="episodes" class="tree" aria-label="Data folders and episodes" data-i18n-aria-label="데이터 폴더 및 episode"></div></div>
+<div class="feedback"><p id="error" role="alert"></p><div id="toast" role="status"></div></div>
+</aside>
+<section class="screen"><main tabindex="0" aria-label="Simulation keyboard control" data-i18n-aria-label="Simulation 키보드 제어"><img id="view" alt="Preparing the simulation view." data-i18n-alt="Simulation 화면을 준비하고 있습니다.">
+<div class="view-telemetry">
+<div id="eefPoses" class="eef-poses stale" aria-label="Both arm EEF poses · world coordinates · palm frame" data-i18n-aria-label="양팔 EEF 실제 위치와 자세 · 월드 좌표 · 손바닥 기준">
+<div class="eef-heading"><span>EEF · World · Palm</span><span id="eefState" data-i18n="준비 중">Preparing</span></div>
+<div class="eef-card"><strong data-i18n="왼팔">Left arm</strong><div class="eef-values"><span>XYZ m</span><output id="eefLeftX">—</output><output id="eefLeftY">—</output><output id="eefLeftZ">—</output><span>RPY °</span><output id="eefLeftR">—</output><output id="eefLeftP">—</output><output id="eefLeftYaw">—</output></div></div>
+<div class="eef-card"><strong data-i18n="오른팔">Right arm</strong><div class="eef-values"><span>XYZ m</span><output id="eefRightX">—</output><output id="eefRightY">—</output><output id="eefRightZ">—</output><span>RPY °</span><output id="eefRightR">—</output><output id="eefRightP">—</output><output id="eefRightYaw">—</output></div></div>
+</div>
+<div id="stepTiming" class="step-timing stale" aria-label="Recent average physics step timing" data-i18n-aria-label="최근 물리 스텝 평균 주기" title="Physics dt: simulated time per step. Wall time: elapsed real time including control, rendering and waiting. A real-time factor of 1× means one simulated second per real second." data-i18n-title="물리 dt: 한 스텝의 시뮬레이션 시간. 실제 주기: 제어·렌더링·대기를 포함한 현실의 경과 시간. 실시간 대비 1×는 시뮬레이션 1초가 현실 1초에 진행됨을 뜻합니다.">
+<div class="timing-heading"><span id="timingWindow" data-i18n="최근 스텝 평균">Recent step average</span><span id="timingState" data-i18n="측정 대기">Waiting</span></div>
+<div class="timing-values"><span data-i18n="물리 dt">Physics dt</span><output id="timingPhysics">—</output><span data-i18n="실제 주기">Wall time</span><output id="timingWall">—</output><span data-i18n="실시간 대비">Real-time factor</span><output id="timingRatio">—</output></div>
+</div>
+</div>
+<div id="wristViews" class="wrist-views" aria-label="Left and right wrist cameras" data-i18n-aria-label="좌우 손목 카메라" hidden>
+<div class="wrist-toolbar"><span id="wristTitle" data-i18n="손목 카메라">Wrist cameras</span><button id="toggleWrist" aria-controls="wristGrid" aria-expanded="true" data-i18n="접기">Collapse</button></div>
+<div id="wristGrid" class="wrist-grid">
+<figure class="wrist-card"><figcaption data-i18n="왼손">Left hand</figcaption><div id="wristLeftWrap" class="wrist-image"><img id="wristLeft" alt="Left wrist camera" data-i18n-alt="왼손 손목 카메라"><span id="wristLeftState" class="wrist-state" data-i18n="준비 중…">Preparing…</span></div></figure>
+<figure class="wrist-card"><figcaption data-i18n="오른손">Right hand</figcaption><div id="wristRightWrap" class="wrist-image"><img id="wristRight" alt="Right wrist camera" data-i18n-alt="오른손 손목 카메라"><span id="wristRightState" class="wrist-state" data-i18n="준비 중…">Preparing…</span></div></figure>
+</div></div></main></section>
+</div>
+<dialog id="details" aria-labelledby="detailTitle">
+<div class="episode-heading"><div class="episode-title"><div class="episode-title-line"><h2 id="detailTitle" data-i18n="Episode 정보">Episode details</h2><span id="episodeOutcome" class="outcome"></span></div><p id="episodeFilename" class="episode-filename"></p></div><div class="episode-heading-actions"><button id="createReplay" data-i18n="Relay 생성">Generate replay</button></div></div>
+<div class="episode-scroll"><div id="metadata"><dl id="episodeSummary" class="summary-cards"></dl><dl id="episodeFacts" class="episode-facts"></dl></div><section class="schema-section"><h3 data-i18n="데이터 구조">Data structure</h3><div id="datasetTree" class="schema-tree" aria-label="Recorded data structure" data-i18n-aria-label="저장된 데이터 구조"></div></section></div>
+<section id="replayPanel" hidden aria-label="Episode replay comparison" data-i18n-aria-label="Episode replay 비교">
+ <div class="replay-options"><select id="replayLeftMode" aria-label="Left comparison view" data-i18n-aria-label="왼쪽 비교 영상"><option value="original" data-i18n="저장된 원본 RGB">Recorded RGB</option><option value="state" data-i18n="저장 상태로 다시 렌더링">Render from saved state</option></select><select id="replayCamera" aria-label="Replay camera" data-i18n-aria-label="Replay 카메라"></select></div>
+ <div class="replay-pair"><figure><figcaption id="replayLeftLabel" data-i18n="저장된 원본 RGB">Recorded RGB</figcaption><img id="replayLeft" alt="Original or state replay at the selected step" data-i18n-alt="선택한 step의 원본 또는 상태 재생"></figure><figure><figcaption>Action replay · serial</figcaption><img id="replayRight" alt="Action replay at the same step" data-i18n-alt="같은 step의 action replay"></figure></div>
+ <div class="replay-controls"><button id="replayPrev" aria-label="Previous frame" data-i18n-aria-label="이전 프레임">◀</button><button id="replayPlay" data-i18n="재생">Play</button><button id="replayNext" aria-label="Next frame" data-i18n-aria-label="다음 프레임">▶</button><input id="replaySeek" type="range" min="0" max="0" value="0" step="1" aria-label="Replay frame" data-i18n-aria-label="Replay 프레임"></div>
+ <output id="replayStep"></output><p id="replayMetrics"></p><p id="replayNote" class="muted"></p>
+</section>
+<div class="dialog-actions"><button id="deleteEpisode" data-i18n="삭제">Delete</button><div class="replay-job"><button id="removeReplay" hidden data-i18n="취소·삭제">Cancel &amp; delete</button><span id="replayProgress" role="status"></span></div><button id="closeDetails" data-i18n="닫기">Close</button></div>
+</dialog>
+<script src="/i18n.js"></script>
+<script>
+const L=window.B2DI18n, tr=L.t;
+const $=id=>document.getElementById(id), img=$('view'), status=$('status'), stats=$('stats'), viewport=document.querySelector('main');
+const preference={get(key,fallback){try{return JSON.parse(localStorage.getItem('b2d:'+key))??fallback;}catch{return fallback;}},set(key,value){try{localStorage.setItem('b2d:'+key,JSON.stringify(value));}catch{}}};
+let paused=false,seq=0,shown=0,tick=performance.now(),fps=0,physics='—',frameStream='',debugMode=false;
+$('pause').onclick=()=>{paused=!paused;L.text('pause',paused?'다시 보기':'일시정지');L.text(status,paused?'화면 일시정지':'연결 중…');};
+$('full').onclick=()=>{viewport.focus();viewport.requestFullscreen();};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function frames(){while(true){
+ if(paused||(debugMode&&seq>0)){await wait(200);continue;}
+ try{const start=performance.now(),r=await fetch('/frame.jpg?after='+seq+'&stream='+encodeURIComponent(frameStream),{cache:'no-store'});if(r.status===204){await wait(debugMode?100:20);continue;}if(!r.ok)throw Error('화면 준비 중');
+ const nextSeq=Number(r.headers.get('X-Frame-Sequence')),blob=await r.blob(),url=URL.createObjectURL(blob),previous=img.src;
+ img.src=url;await img.decode();if(previous.startsWith('blob:'))URL.revokeObjectURL(previous);seq=nextSeq;frameStream=r.headers.get('X-Frame-Stream')||'';shown++;const now=performance.now();
+ if(now-tick>=1000){fps=shown*1000/(now-tick);shown=0;tick=now;}
+ L.text(status,debugMode?'DEBUG · 정지 화면':'실시간 화면');if(debugMode)L.text(stats,'첫 화면만 표시 · 조작·수집 중지');else L.text(stats,'수신 {fps} FPS · 요청→표시 {ms} ms · Physics {physics}',{fps:fps.toFixed(1),ms:Math.round(now-start),physics});
+ }catch(e){L.text(status,'서버 연결 대기 중…');await wait(1000);}
+}}
+function showTiming(t, message=''){
+ const valid=Boolean(t&&t.samples>0&&[t.physics_period_ms,t.wall_period_ms,t.physics_hz,t.wall_hz,t.real_time_factor].every(v=>Number.isFinite(v)&&v>0));
+ const live=valid&&!t.stale&&!debugMode&&!message;
+ if(t&&Number.isInteger(t.window))L.text('timingWindow','최근 {samples}스텝 평균',{samples:(t.samples<t.window?t.samples+'/':'')+t.window});
+ L.text('timingState',message||(debugMode?'DEBUG · 정지':valid?(t.stale?'갱신 지연':'실시간'):'측정 대기'));
+ $('stepTiming').classList.toggle('stale',!live);
+ $('timingPhysics').textContent=live?`${t.physics_period_ms.toFixed(2)} ms · ${t.physics_hz.toFixed(1)} Hz`:'—';
+ $('timingWall').textContent=live?`${t.wall_period_ms.toFixed(2)} ms · ${t.wall_hz.toFixed(1)} Hz`:'—';
+ $('timingRatio').textContent=live?`${t.real_time_factor.toFixed(2)}×`:'—';
+}
+async function health(){while(true){try{const response=await fetch('/health',{cache:'no-store',signal:AbortSignal.timeout(3000)});if(!response.ok)throw Error('health unavailable');const h=await response.json();physics=h.physics_step??'—';debugMode=Boolean(h.debug_mode);showTiming(h.timing);if(h.sequence<seq||(h.stream&&h.stream!==frameStream))seq=0;if(debugMode&&!paused){L.text(status,h.ready?'DEBUG · 정지 화면':'첫 화면 준비 중…');L.text(stats,'첫 화면만 표시 · 조작·수집 중지');}}catch(e){showTiming(null,'연결 대기');if(debugMode){L.text(status,'서버 연결 대기 중…');}}await wait(1000);}}
+function eefRpy(q){
+ if(!Array.isArray(q)||q.length!==4||!q.every(Number.isFinite))return null;
+ const norm=Math.hypot(...q);if(norm<1e-8)return null;
+ const [w,x,y,z]=q.map(v=>v/norm),degrees=180/Math.PI;
+ // Roll X, pitch Y, yaw Z: R = Rz(yaw) Ry(pitch) Rx(roll), from world wxyz.
+ return [Math.atan2(2*(w*x+y*z),1-2*(x*x+y*y)),Math.asin(Math.max(-1,Math.min(1,2*(w*y-z*x)))),Math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))].map(v=>v*degrees);
+}
+function showEef(data, message){
+ let valid=0;
+ for(const [side,id] of [['left','Left'],['right','Right']]){
+  const hand=data?.ready?data.hands?.[side]:null,position=hand?.position_xyz,angles=eefRpy(hand?.orientation_wxyz);
+  const ok=Array.isArray(position)&&position.length===3&&position.every(Number.isFinite)&&angles!==null;
+  if(ok)valid++;
+  for(const [i,axis] of ['X','Y','Z','R','P','Yaw'].entries()){
+   const value=ok?[...position,...angles][i]:null,digits=i<3?3:1;
+   $('eef'+id+axis).textContent=value===null?'—':(Math.abs(value)<.5*Math.pow(10,-digits)?0:value).toFixed(digits);
+  }
+ }
+ $('eefPoses').classList.toggle('stale',!valid);
+ L.text('eefState',message||(valid?'현재 자세':data?.mode==='debug'?'DEBUG':data?.mode==='stale'?'갱신 중단':'준비 중'));
+}
+async function eefLoop(){while(true){
+ if(document.hidden||paused){showEef(null,paused?'화면 일시정지':'');await wait(200);continue;}
+ const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),1000);
+ try{const r=await fetch('/api/eef',{cache:'no-store',signal:abort.signal});if(!r.ok)throw Error('pose unavailable');showEef(await r.json());}
+ catch(e){showEef(null,'연결 대기');}finally{clearTimeout(timer);}
+ await wait(debugMode?1000:100);
+}}
+const pressed=new Set(),pageSession=crypto.randomUUID(),keyCodes={KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',Space:'space',ShiftLeft:'shift',ShiftRight:'shift',F1:'f1',F2:'f2',F6:'f6',F7:'f7'};
+let keySeq=0,sendingKeys=false;
+let keyboardConfig='';
+async function refreshKeyboardConfig(){try{
+ const r=await fetch('/keyboard/config',{cache:'no-store'});if(!r.ok)return;
+ const config=await r.json(),signature=JSON.stringify(config);if(signature===keyboardConfig)return;
+ keyboardConfig=signature;clearKeys();for(const code of Object.keys(keyCodes))delete keyCodes[code];
+ for(const key of [...Object.values(config).filter(Boolean),'f6','f7']){
+  if(/^[a-z]$/.test(key))keyCodes['Key'+key.toUpperCase()]=key;
+  else if(/^[0-9]$/.test(key))keyCodes['Digit'+key]=key;
+  else if(['shift','control','alt'].includes(key)){const name=key[0].toUpperCase()+key.slice(1);keyCodes[name+'Left']=key;keyCodes[name+'Right']=key;}
+  else if(key.startsWith('arrow'))keyCodes['Arrow'+key[5].toUpperCase()+key.slice(6)]=key;
+  else keyCodes[key==='space'?'Space':key.toUpperCase()]=key;
+ }
+}catch(e){}}
+refreshKeyboardConfig();setInterval(refreshKeyboardConfig,1000);
+function focused(){return document.hasFocus()&&!document.hidden&&document.activeElement===viewport;}
+async function sendKeys(){if(debugMode){pressed.clear();viewport.dataset.control='disabled';return;}if(sendingKeys)return;sendingKeys=true;const active=focused();try{const keys=[...new Set([...pressed].map(code=>keyCodes[code]))];const r=await fetch('/keyboard',{method:'POST',headers:{'Content-Type':'application/json','X-Dex-Teleop-Control':'1'},body:JSON.stringify({session:pageSession,seq:++keySeq,focused:active,keys:active?keys:[]}),keepalive:true});const result=await r.json();viewport.dataset.control=active?(result.accepted?'active':'busy'):'inactive';}catch(e){viewport.dataset.control='offline';}finally{sendingKeys=false;}}
+function clearKeys(){pressed.clear();sendKeys();}
+viewport.addEventListener('pointerdown',()=>{viewport.focus();sendKeys();});viewport.addEventListener('focus',sendKeys);viewport.addEventListener('blur',clearKeys);
+viewport.addEventListener('keydown',e=>{if(keyCodes[e.code]){e.preventDefault();pressed.add(e.code);sendKeys();}});viewport.addEventListener('keyup',e=>{if(keyCodes[e.code]){e.preventDefault();pressed.delete(e.code);sendKeys();}});
+window.addEventListener('blur',clearKeys);document.addEventListener('visibilitychange',clearKeys);window.addEventListener('pagehide',clearKeys);setInterval(()=>{if(focused())sendKeys();},50);
+
+// Camera JPEGs share the existing SSH-forwarded HTTP server. Recording does not depend on this viewer.
+let wristEnabled=false,wristOpen=preference.get('wrist-open',true),wristInfo=null;
+const wristFeeds={left:{id:'Left',seq:0,stream:'',received:0,error:''},right:{id:'Right',seq:0,stream:'',received:0,error:''}};
+function wristLayout(){
+ $('wristViews').hidden=!wristEnabled;$('wristViews').classList.toggle('collapsed',!wristOpen);
+ $('wristGrid').hidden=!wristOpen;L.text('toggleWrist',wristOpen?'접기':'펼치기');$('toggleWrist').setAttribute('aria-expanded',String(wristOpen));
+}
+$('toggleWrist').addEventListener('pointerdown',e=>e.stopPropagation());
+$('toggleWrist').addEventListener('keydown',e=>e.stopPropagation());
+$('toggleWrist').onclick=e=>{e.stopPropagation();wristOpen=!wristOpen;preference.set('wrist-open',wristOpen);wristLayout();};
+function wristStatus(){
+ for(const [side,feed] of Object.entries(wristFeeds)){
+  const state=wristInfo?.streams?.[side],fresh=feed.received&&(debugMode||performance.now()-feed.received<1800);
+  const message=paused?'일시정지':feed.error||(!state?.enabled?'사용 안 함':state.error?'영상 없음':!fresh?'프레임 대기 중…':'');
+  $('wrist'+feed.id+'Wrap').classList.toggle('fresh',!message);
+  L.bindMessage('wrist'+feed.id+'State',message);
+ }
+}
+function updateWrist(info){
+ wristInfo=info;wristEnabled=Boolean(info?.enabled);L.text('wristTitle',debugMode?'손목 카메라 · 정지 화면':'손목 카메라');
+ for(const [side,feed] of Object.entries(wristFeeds)){
+  if(info?.stream&&feed.stream&&feed.stream!==info.stream){feed.seq=0;feed.received=0;}
+ }
+ wristLayout();wristStatus();
+}
+async function wristFrames(side){const feed=wristFeeds[side],image=$('wrist'+feed.id);
+ while(true){
+  if(!wristEnabled||!wristOpen||paused||document.hidden||(debugMode&&feed.seq>0&&feed.stream===wristInfo?.stream)){await wait(200);continue;}
+  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),3500);
+  try{
+   const r=await fetch('/camera/'+side+'.jpg?after='+feed.seq+'&stream='+encodeURIComponent(feed.stream),{cache:'no-store',signal:abort.signal});
+   if(r.status===204){await wait(40);continue;}
+   if(!r.ok)throw Error('camera unavailable');
+   const blob=await r.blob(),url=URL.createObjectURL(blob),previous=image.src;
+   image.src=url;await image.decode();if(previous.startsWith('blob:'))URL.revokeObjectURL(previous);
+   feed.seq=Number(r.headers.get('X-Frame-Sequence'));feed.stream=r.headers.get('X-Frame-Stream');feed.received=performance.now()-Math.max(0,Number(r.headers.get('X-Frame-Age-Ms'))||0);feed.error='';wristStatus();
+  }catch(e){feed.error='연결 대기 중…';wristStatus();await wait(500);}finally{clearTimeout(timer);}
+ }
+}
+setInterval(wristStatus,500);
+let syncedFolder=null,syncedTask=null,taskRefresh=0,ui=null,taskList=[],selectedEpisode=null,lastListing='',lastRefresh=0,treeSignature='',treeBusy=false,criteriaSignature='',detailsRequest=0;
+let hapticsDirty=false,hapticRevision=0,hapticPending=null,hapticsSaving=false;
+let workspaceDirty=false,workspaceSaving=false,workspaceAwaiting=null;
+const expandedFolders=new Set(preference.get('tree-expanded',['']));
+function sidebar(show){$('sidebar').hidden=!show;$('layout').classList.toggle('sidebar-hidden',!show);const button=$('toggleSidebar'),label=show?'탐색기 닫기':'탐색기 열기';button.textContent=show?'<':'>';L.text(button,label,{},'title');L.text(button,label,{},'aria-label');button.setAttribute('aria-expanded',String(show));preference.set('sidebar',show);}
+$('toggleSidebar').onclick=()=>sidebar($('sidebar').hidden);sidebar(preference.get('sidebar',true));
+function tab(name){for(const n of ['settings','data']){$(n+'Panel').hidden=n!==name;$(n+'Tab').classList.toggle('active',n===name);$(n+'Tab').setAttribute('aria-selected',String(n===name));}preference.set('tab',name);if(name==='data')refreshEpisodes().catch(report);}
+$('settingsTab').onclick=()=>tab('settings');$('dataTab').onclick=()=>tab('data');tab(preference.get('tab','settings')==='data'?'data':'settings');
+async function api(path,data){const r=await fetch(path,data?{method:'POST',headers:{'Content-Type':'application/json','X-Dex-Teleop-Control':'1'},body:JSON.stringify(data)}:{cache:'no-store'});const v=await r.json();if(!r.ok)throw Error(v.error||'요청 실패');return v;}
+function report(e){L.bindMessage('toast',e.message||String(e));}
+async function command(data){try{await api('/api/command',data);L.text('toast','');await dashboardState();}catch(e){report(e);}}
+$('record').onclick=()=>command({action:'toggle'});$('reset').onclick=()=>command({action:'reset'});
+$('applyFolder').onclick=async()=>{await command({action:'folder',folder:$('folder').value.trim()});await refreshEpisodes();};
+$('applyTask').onclick=()=>{if(ui&&$('task').value!==ui.task&&confirm(tr('선택한 task로 변경할까요?')))command({action:'task',task:$('task').value});};
+$('task').onchange=()=>{
+ const t=taskList.find(t=>t.id===$('task').value),busy=Boolean(ui?.assets?.busy),criteria=t?.success_criteria,signature=JSON.stringify([t?.id,criteria]);
+ if(signature!==criteriaSignature){
+  criteriaSignature=signature;const box=$('taskDescription'),summary=document.createElement('p');
+  L.format(summary,()=>criteria?.translations?.[L.language]?.summary||L.message(criteria?.summary||(t?'성공 조건 안내가 아직 등록되지 않았습니다.':'Task를 선택하세요.')));box.replaceChildren(summary);
+  if(criteria?.details?.length){const list=document.createElement('ul');for(const [index,text] of criteria.details.entries()){const item=document.createElement('li');L.format(item,()=>criteria.translations?.[L.language]?.details?.[index]||L.message(text));list.append(item);}box.append(list);}
+  box.scrollTop=0;L.text('taskDwell',Number.isFinite(criteria?.dwell_time_s)?'{seconds}초 유지':'',{seconds:criteria?.dwell_time_s});
+ }
+ $('applyTask').disabled=!ui?.ready||ui?.recording||['saving','save_error'].includes(ui?.phase)||ui?.workspace_pending||busy||!t?.available||t.id===ui?.task;
+ $('downloadTask').disabled=!ui?.ready||Boolean(ui?.recording)||busy||!t||t.available;
+ L.bindMessage('downloadTask',t?.available?'이 Task의 asset이 준비되어 있습니다.':t?.asset_error||'선택한 Task의 asset 다운로드','title');
+};
+$('downloadTask').onclick=()=>command({action:'download',task:$('task').value});$('cancelDownload').onclick=()=>{const job=ui?.assets?.jobs.find(j=>j.state==='downloading'||j.state==='queued');if(job)command({action:'download_cancel',task:job.task});};
+function sizeLabel(bytes){if(bytes<1024)return bytes+' B';let value=bytes/1024,unit='KiB';if(value>=1024){value/=1024;unit='MiB';}if(value>=1024){value/=1024;unit='GiB';}return value.toFixed(2)+' '+unit;}
+async function refreshTasks(){const selected=$('task').value;taskList=await api('/api/tasks');$('task').replaceChildren();for(const t of taskList){const option=document.createElement('option');option.value=t.id;option.textContent=t.id;$('task').append(option);}$('task').value=taskList.some(t=>t.id===selected)?selected:ui?.task||taskList[0]?.id;$('task').onchange();taskRefresh=Date.now();}
+function hapticLimits(){return {limit:Number(ui?.haptic_force_limit_n)||20,step:Number(ui?.haptic_force_step_n)||.05};}
+function drawHaptics(){
+ const low=Number($('forceMin').value),high=Number($('forceMax').value),{limit,step}=hapticLimits(),enabled=$('hapticEnabled').getAttribute('aria-checked')==='true';
+ $('forceFill').style.left=(low/limit*100)+'%';$('forceFill').style.width=((high-low)/limit*100)+'%';
+ $('forceMinValue').value=low.toFixed(2);$('forceMaxValue').value=high.toFixed(2);$('forceMinValue').max=(high-step).toFixed(2);$('forceMaxValue').min=(low+step).toFixed(2);
+ $('forceMin').setAttribute('aria-valuemax',(high-step).toFixed(2));$('forceMax').setAttribute('aria-valuemin',(low+step).toFixed(2));
+ for(const side of ['Min','Max'])$('force'+side).setAttribute('aria-valuetext',Number($('force'+side).value).toFixed(2)+' N');
+ L.text('hapticEnabledLabel',enabled?'켜짐':'꺼짐');$('hapticSettings').classList.toggle('haptic-muted',!enabled);$('maxPowerLabel').textContent=Number($('maxPower').value).toFixed(2);
+}
+function editHaptics(){hapticsDirty=true;hapticRevision++;}
+function editForce(side,raw){
+ const {limit,step}=hapticLimits(),value=Number(raw);
+ if(raw===''||!Number.isFinite(value)){drawHaptics();return false;}
+ const low=side==='Min'?0:Number($('forceMin').value)+step,high=side==='Max'?limit:Number($('forceMax').value)-step;
+ $('force'+side).value=Math.max(low,Math.min(high,Math.round(value/step)*step)).toFixed(2);
+ editHaptics();drawHaptics();return true;
+}
+function syncHaptics(state){
+ for(const id of ['hapticEnabled','forceMin','forceMax','forceMinValue','forceMaxValue','maxPower'])$(id).disabled=debugMode;
+ if(hapticsDirty||hapticsSaving||['forceMinValue','forceMaxValue'].includes(document.activeElement?.id))return;
+ const {limit,step}=hapticLimits();
+ for(const id of ['forceMin','forceMax','forceMinValue','forceMaxValue']){$(id).max=limit;$(id).step=step;}
+ $('forceLimitLabel').textContent=limit+' N';$('forceMin').value=state.haptic_force_min_n;$('forceMax').value=state.haptic_force_max_n;
+ $('hapticEnabled').setAttribute('aria-checked',String(state.haptic_enabled!==false));$('maxPower').value=Number(state.haptic_max_power??.35);drawHaptics();
+}
+async function saveHaptics(){
+ hapticPending={revision:hapticRevision,data:{action:'haptics',enabled:$('hapticEnabled').getAttribute('aria-checked')==='true',force_min_n:Number($('forceMin').value),force_max_n:Number($('forceMax').value),max_power:Number($('maxPower').value)}};
+ if(hapticsSaving)return;hapticsSaving=true;
+ try{
+  while(hapticPending){
+   const request=hapticPending;hapticPending=null;
+   try{await api('/api/command',request.data);L.text('toast','');}
+   catch(e){report(e);}
+   finally{if(request.revision===hapticRevision)hapticsDirty=false;}
+  }
+ }finally{hapticsSaving=false;try{await dashboardState();}catch(e){report(e);}}
+}
+for(const side of ['Min','Max']){
+ const slider=$('force'+side),number=$('force'+side+'Value');
+ slider.oninput=()=>editForce(side,slider.value);slider.onchange=saveHaptics;
+ slider.onfocus=()=>{slider.style.zIndex='3';$('force'+(side==='Min'?'Max':'Min')).style.zIndex='2';};
+ number.onchange=()=>{if(editForce(side,number.value))saveHaptics();};
+}
+$('hapticEnabled').onclick=()=>{$('hapticEnabled').setAttribute('aria-checked',String($('hapticEnabled').getAttribute('aria-checked')!=='true'));editHaptics();drawHaptics();saveHaptics();};
+$('maxPower').oninput=()=>{editHaptics();drawHaptics();};$('maxPower').onchange=saveHaptics;
+drawHaptics();
+const workspaceInputs=['workspaceMinX','workspaceMinY','workspaceMinZ','workspaceMaxX','workspaceMaxY','workspaceMaxZ'];
+function readWorkspace(){return {min_offset_xyz:['X','Y','Z'].map(axis=>$('workspaceMin'+axis).valueAsNumber),max_offset_xyz:['X','Y','Z'].map(axis=>$('workspaceMax'+axis).valueAsNumber)};}
+function fillWorkspace(settings){
+ for(const [i,axis] of ['X','Y','Z'].entries()){$('workspaceMin'+axis).value=settings.min_offset_xyz[i].toFixed(2);$('workspaceMax'+axis).value=settings.max_offset_xyz[i].toFixed(2);}
+}
+function syncWorkspace(state){
+ if(!state?.workspace)return;
+ if(workspaceAwaiting&&!state.workspace_pending){
+  if(JSON.stringify(state.workspace)===JSON.stringify(workspaceAwaiting)){workspaceAwaiting=null;workspaceDirty=false;}
+  else if(state.error)workspaceAwaiting=null;
+ }
+ const busy=workspaceSaving||Boolean(workspaceAwaiting)||state.workspace_pending;
+ const disabled=debugMode||!state.ready||!state.workspace_ready||state.phase!=='idle'||busy;
+ for(const id of workspaceInputs)$(id).disabled=disabled;
+ $('resetWorkspace').disabled=disabled;$('applyWorkspace').disabled=disabled||!workspaceDirty;
+ L.text('applyWorkspace',busy?'적용 중…':'범위 적용');
+ if(!workspaceDirty&&!busy)fillWorkspace(state.workspace);
+ for(const axis of ['X','Y','Z']){const keys=state.workspace_keys?.[axis.toLowerCase()];if(keys)$('workspaceKeys'+axis).textContent=keys.map(key=>({space:'Space',shift:'Shift'}[key]||key.toUpperCase())).join(' / ');}
+ L.text('workspaceMessage',debugMode?'DEBUG 모드에서는 변경할 수 없습니다.':busy?'이동 범위 적용 중…':state.recording?'수집 종료 후 변경할 수 있습니다.':!state.workspace_ready?'로봇 준비 중…':workspaceDirty?'변경한 값은 범위 적용을 눌러 저장하세요.':'적용 후 이동 키를 놓았다 다시 눌러주세요.');
+ $('workspaceMessage').classList.toggle('unsaved',workspaceDirty&&!busy);
+}
+for(const id of workspaceInputs)$(id).oninput=()=>{workspaceDirty=true;syncWorkspace(ui);};
+$('resetWorkspace').onclick=()=>{if(ui?.workspace_defaults){fillWorkspace(ui.workspace_defaults);workspaceDirty=true;syncWorkspace(ui);}};
+$('workspaceForm').onsubmit=async event=>{
+ event.preventDefault();if(workspaceSaving||workspaceAwaiting||!$('workspaceForm').reportValidity())return;
+ const settings=readWorkspace();workspaceSaving=true;syncWorkspace(ui);
+ try{await api('/api/command',{action:'workspace',settings});workspaceAwaiting=settings;L.text('toast','');}
+ catch(e){report(e);}
+ finally{workspaceSaving=false;try{await dashboardState();}catch(e){report(e);syncWorkspace(ui);}}
+};
+$('refresh').onclick=()=>refreshEpisodes().catch(report);$('closeDetails').onclick=()=>$('details').close();
+$('deleteEpisode').onclick=async()=>{
+ if(!selectedEpisode||!confirm(tr('이 episode를 휴지통으로 이동할까요?\n{path}\n\n휴지통에는 최근 10개만 보관하며, 초과한 오래된 파일은 영구 삭제됩니다.',{path:selectedEpisode})))return;
+ try{
+  const result=await api('/api/delete',{path:selectedEpisode,confirm:true});$('details').close();selectedEpisode=null;await refreshEpisodes();
+  if(result.cleanup_errors?.length)report(new Error(tr('선택한 episode는 휴지통으로 이동했지만 오래된 파일 {count}개를 영구 삭제하지 못했습니다. 서버의 파일 권한을 확인하세요.',{count:result.cleanup_errors.length})));
+  else L.text('toast','');
+ }catch(e){report(e);}
+};
+function numberLabel(value,digits=2){return Number.isFinite(value)?value.toLocaleString(L.locale,{maximumFractionDigits:digits}):'—';}
+function renderEpisode(info,file){
+ const s=info.summary||{},meta=info.metadata||{},success=s.success??file.success;
+ setupReplay(info);$('episodeFilename').textContent=info.path;L.text('episodeOutcome',success?'성공':'실패');$('episodeOutcome').className='outcome '+(success?'success':'fail');
+ const cards=[
+  ['Episode length',()=>numberLabel(s.frames,0),()=> 'steps'],
+  ['시뮬레이션 길이',()=>s.duration_s==null?'—':numberLabel(s.duration_s,3)+' s',()=> 'Clock Time'],
+  ['수집 주기',()=>s.sample_hz==null?'—':numberLabel(s.sample_hz)+' Hz',()=>s.sample_hz?tr('{ms} ms · 시뮬레이션 기준',{ms:numberLabel(1000/s.sample_hz)}):''],
+  ['파일 용량',()=>sizeLabel(s.bytes??file.bytes),()=> 'HDF5']
+ ];
+ $('episodeSummary').replaceChildren();
+ for(const [label,value,hint] of cards){const card=document.createElement('div');card.className='summary-card';const title=document.createElement('dt'),detail=document.createElement('dd'),amount=document.createElement('span'),small=document.createElement('small');L.text(title,label);L.format(amount,value);L.format(small,hint);detail.append(amount,small);card.append(title,detail);$('episodeSummary').append(card);}
+ function saved(){if(!s.saved_at)return '—';const stamp=new Date(s.saved_at);return Number.isNaN(stamp.getTime())?'—':tr('{date} (한국 시간)',{date:new Intl.DateTimeFormat(L.locale,{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'medium'}).format(stamp)});}
+ const reasons={stable_success:'성공 조건 달성',manual_stop:'수동 종료',environment_reset:'환경 리셋',frame_limit:'최대 수집 길이 도달',shutdown:'서버 종료'};
+ const facts=[['Task',()=>s.task||meta.task_name||'—'],['로봇',()=>s.robot||meta.robot_key||'—'],['저장 시각',saved],
+  ['종료 사유',()=>L.message(reasons[s.termination_reason]||s.termination_reason||'—')],
+  ['Physics',()=>s.physics_hz?numberLabel(s.physics_hz)+' Hz':'—'],
+  ['Action',()=>s.action_dim==null?'—':tr('{count}차원',{count:numberLabel(s.action_dim,0)})+(meta.control_mode==='joint_position'&&meta.action_type==='absolute'?' · '+tr('절대 관절 목표'):'')],
+  ['수집 상태',()=>s.valid_frames==null?'—':tr('{valid} / {total} 프레임 정상',{valid:numberLabel(s.valid_frames,0),total:numberLabel(s.frames,0)})]];
+ $('episodeFacts').replaceChildren();for(const [key,value] of facts){const dt=document.createElement('dt'),dd=document.createElement('dd');L.text(dt,key);L.format(dd,value);$('episodeFacts').append(dt,dd);}
+ renderDatasetTree(info.structure||[]);
+}
+function renderDatasetTree(nodes){
+ function shapeText(node){return node.shape?(node.shape.length?'['+node.shape.join(' × ')+']':tr('단일 값'))+' '+node.dtype:'';}
+ function build(node){
+  const branch=node.kind==='group'&&node.children?.length,container=document.createElement(branch?'details':'div'),row=document.createElement(branch?'summary':'div');
+  container.className=branch?'schema-group':'schema-item';container.dataset.path=node.path||'';
+  row.className='schema-row'+(branch?'':' schema-leaf');
+  if(branch){container.open=node.path==='cameras';const arrow=document.createElement('span');arrow.className='schema-arrow';arrow.setAttribute('aria-hidden','true');row.append(arrow);}
+  const name=document.createElement('span'),label=document.createElement('span');name.className='schema-name';name.textContent=node.name+(node.kind==='group'?'/':'');label.className='schema-description';L.bindMessage(label,node.label||'');row.append(name,label);
+  const rgb=node.path?.startsWith('cameras/')&&node.path.split('/').length===2?node.children?.find(n=>n.name==='rgb'):null;
+  if(node.shape||rgb){const shape=document.createElement('span');shape.className='schema-shape';L.format(shape,()=>(rgb?'RGB ':'')+shapeText(rgb||node));row.append(shape);}
+  container.append(row);
+  if(branch){const children=document.createElement('div');children.className='schema-children';for(const child of node.children)children.append(build(child));container.append(children);}
+  return container;
+ }
+ $('datasetTree').replaceChildren(...nodes.map(build));if(!nodes.length){const empty=document.createElement('p');L.text(empty,'데이터 구조 정보가 없습니다.');$('datasetTree').append(empty);}
+}
+async function openEpisode(file){
+ const request=++detailsRequest;
+ try{const info=await api('/api/metadata?path='+encodeURIComponent(file.path));if(request!==detailsRequest)return;selectedEpisode=file.path;for(const row of $('episodes').querySelectorAll('.file-row'))row.classList.toggle('selected',row.dataset.path===selectedEpisode);renderEpisode(info,file);if(!$('details').open)$('details').showModal();$('details').querySelector('.episode-scroll').scrollTop=0;}
+ catch(e){if(request===detailsRequest)report(e);}
+}
+function icon(kind){const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');svg.setAttribute('viewBox','0 0 20 20');svg.setAttribute('aria-hidden','true');svg.classList.add('tree-icon',kind==='folder'?'folder-icon':'file-icon');path.setAttribute('d',kind==='folder'?'M2 5h6l2 2h8v10H2z':'M5 2h7l4 4v12H5z M12 2v5h4');svg.append(path);return svg;}
+function rowContents(row,name,bytes,folder,outcome){const arrow=document.createElement('span');arrow.className='chevron';if(!folder)arrow.style.visibility='hidden';const image=icon(folder?'folder':'file');if(!folder)image.classList.add(outcome?'success':'fail');const label=document.createElement('span');label.className='node-name';label.textContent=name;const size=document.createElement('span');size.className='node-size';size.textContent=sizeLabel(bytes);row.append(arrow,image,label,size);}
+function renderTree(snapshot){
+ const box=$('episodes'),scroll=box.scrollTop,focusedPath=box.contains(document.activeElement)?document.activeElement.dataset.path:null;
+ const root={path:'',name:'data',folders:new Map(),files:[],bytes:snapshot.bytes,episodes:snapshot.episodes},nodes=new Map([['',root]]);
+ function ensure(path){if(nodes.has(path))return nodes.get(path);const parts=path.split('/'),name=parts.pop(),parent=ensure(parts.join('/')),node={path,name,folders:new Map(),files:[],bytes:0,episodes:0};parent.folders.set(name,node);nodes.set(path,node);return node;}
+ for(const folder of snapshot.folders)Object.assign(ensure(folder.path),folder);
+ for(const file of snapshot.files){const parts=file.path.split('/');parts.pop();ensure(parts.join('/')).files.push(file);}
+ function directory(node,depth){const folder=document.createElement('details');folder.className='tree-folder';folder.dataset.path=node.path;folder.open=expandedFolders.has(node.path);folder.classList.toggle('folder-current',node.path===ui.folder);const row=document.createElement('summary');row.className='tree-row'+(depth===0?' root-row':'');row.dataset.path=node.path;row.style.setProperty('--depth',depth);row.title=(node.path?ui.data_root+'/'+node.path:ui.data_root)+'\n'+node.episodes+' episodes · '+sizeLabel(node.bytes);rowContents(row,node.name,node.bytes,true);folder.append(row);const children=document.createElement('div');children.className='tree-children';for(const child of [...node.folders.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})))children.append(directory(child,depth+1));for(const file of node.files){const button=document.createElement('button');button.className='tree-row file-row';button.dataset.path=file.path;button.style.setProperty('--depth',depth+1);L.format(button,()=>file.name+'\n'+tr(file.success?'성공':'실패')+' · '+sizeLabel(file.bytes),'title');button.classList.toggle('selected',selectedEpisode===file.path);rowContents(button,file.name,file.bytes,false,file.success);button.onclick=()=>openEpisode(file);children.append(button);}if(!children.childElementCount){const empty=document.createElement('div');empty.className='tree-empty';empty.style.setProperty('--depth',depth+1);L.text(empty,'비어 있음');children.append(empty);}folder.append(children);folder.addEventListener('toggle',()=>{if(!folder.isConnected)return;if(folder.open)expandedFolders.add(node.path);else expandedFolders.delete(node.path);preference.set('tree-expanded',[...expandedFolders]);});return folder;}
+ box.replaceChildren(directory(root,0));if(focusedPath!==null){const match=[...box.querySelectorAll('.tree-row')].find(row=>row.dataset.path===focusedPath);if(match)match.focus({preventScroll:true});}box.scrollTop=scroll;
+}
+$('collapseTree').onclick=()=>{expandedFolders.clear();expandedFolders.add('');for(const folder of $('episodes').querySelectorAll('details'))folder.open=folder.dataset.path==='';preference.set('tree-expanded',[...expandedFolders]);};
+$('episodes').addEventListener('keydown',e=>{const row=e.target.closest('.tree-row');if(!row||e.altKey||e.ctrlKey||e.metaKey)return;const rows=[...$('episodes').querySelectorAll('.tree-row')].filter(r=>r.getClientRects().length);const current=rows.indexOf(row),folder=row.tagName==='SUMMARY'?row.parentElement:null;let next=null;if(e.key==='ArrowDown')next=rows[Math.min(rows.length-1,current+1)];else if(e.key==='ArrowUp')next=rows[Math.max(0,current-1)];else if(e.key==='Home')next=rows[0];else if(e.key==='End')next=rows[rows.length-1];else if(e.key==='ArrowRight'&&folder){if(!folder.open)folder.open=true;else next=rows[current+1];}else if(e.key==='ArrowLeft'){if(folder?.open)folder.open=false;else next=row.parentElement.closest('.tree-children')?.parentElement.querySelector(':scope > summary');}else return;e.preventDefault();if(next)next.focus();});
+async function refreshEpisodes(){if(!ui?.enabled||treeBusy)return;treeBusy=true;try{const snapshot=await api('/api/tree');L.format('counts',()=>`${snapshot.episodes} episodes · ${sizeLabel(snapshot.bytes)}\n`+tr('성공 {success} · 실패 {fail} · 휴지통 제외',snapshot));const signature=JSON.stringify(snapshot)+'|'+ui.folder;if(signature!==treeSignature){renderTree(snapshot);treeSignature=signature;}lastListing=ui.folder+'|'+ui.last_saved;lastRefresh=Date.now();}finally{treeBusy=false;}}
+async function dashboardState(){
+ ui=await api('/api/state');debugMode=Boolean(ui.debug_mode);updateWrist(ui.wrist_cameras);if(ui.enabled===false){$('sidebar').hidden=true;$('layout').classList.add('sidebar-hidden');$('toggleSidebar').hidden=true;return;}$('toggleSidebar').hidden=false;$('root').value=ui.data_root;
+ const phases={replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
+ L.format('collection',()=>tr(phases[ui.phase]||ui.phase)+(debugMode?'':`\n${ui.frames.toLocaleString(L.locale)} frames · ${ui.sim_seconds.toFixed(2)} s`)+(ui.success?' · '+tr('성공'):''));L.text('record',ui.phase==='save_error'?'F7 저장 재시도':ui.recording?'F7 종료·저장·리셋':'F7 리셋 후 시작');$('record').disabled=debugMode||!ui.ready||ui.phase==='saving'||(!ui.recording&&(!ui.data_writable||ui.assets?.busy));$('reset').disabled=debugMode||!ui.ready||ui.phase==='saving';$('maxPower').disabled=debugMode;$('applyFolder').disabled=!ui.ready||ui.recording;$('folder').disabled=!ui.ready||ui.recording;
+ if(syncedFolder!==ui.folder&&document.activeElement!==$('folder')){$('folder').value=ui.folder;syncedFolder=ui.folder;}
+ if(syncedTask!==ui.task&&taskList.length){$('task').value=ui.task;syncedTask=ui.task;}
+ L.bindMessage('error',ui.error||(!ui.data_writable?'데이터 root에 쓰기 권한이 없습니다.':''));syncHaptics(ui);syncWorkspace(ui);
+ if(ui.workspace_pending){$('record').disabled=true;$('reset').disabled=true;}
+ if(ui.phase==='save_error')$('reset').disabled=true;
+ const jobs=ui.assets?.jobs||[],job=jobs.find(j=>j.state==='downloading'||j.state==='queued')||jobs.filter(j=>j.task===$('task').value).at(-1);$('cancelDownload').hidden=!ui.assets?.busy;$('downloadStatus').hidden=!job||job.state==='complete';if(job)L.format('downloadStatus',()=>`${tr({queued:'대기',downloading:'다운로드 중',cancelled:'취소됨',error:'다운로드 실패',complete:'완료'}[job.state]||job.state)} · ${job.completed_files}/${job.discovered_files}\n${sizeLabel(job.bytes_received)}${job.error?'\n'+L.message(job.error):''}`);$('task').onchange();
+ if(lastListing!==ui.folder+'|'+ui.last_saved||Date.now()-lastRefresh>10000)await refreshEpisodes();
+}
+async function dashboardLoop(){while(true){try{await dashboardState();if(ui.enabled!==false&&(!taskList.length||Date.now()-taskRefresh>3000))await refreshTasks();}catch(e){L.text('collection','서버 연결 대기 중…');}await wait(1000);}}
+frames();health();dashboardLoop();wristFrames('left');wristFrames('right');eefLoop();
+</script>
+<script src="/replay.js"></script>
+</body></html>

@@ -1,0 +1,166 @@
+# English counterpart of task_success_ko.yaml. These describe the existing evaluators;
+# they do not add conditions. Dwell time comes directly from each scene's terminal config.
+version: 1
+notes:
+  - Position checks use reference points and corrected centers or regions, not precise collision tests of whether an entire object is inside a container.
+  - Pouring, ladling and filling are evaluated from object poses and movement sequences, not actual liquid volume.
+  - Tasks that remember completed sequences keep their success state afterward. Dwell time is measured in simulation time.
+tasks:
+  03_wine_glass_plate_balance:
+    summary: Stand the three wine glasses upright at three separate target positions and let them settle.
+    details:
+      - 'Target XY (m): (0.58, 0.25), (0.08, 0.25), (-0.42, 0.25). Each glass must be within 10 cm of a different target; any assignment is allowed.'
+      - Each glass must tilt less than 30°, with linear speed below 5 cm/s and angular speed below 0.25 rad/s.
+      - The plate position and balancing the glasses on the plate are not part of the final success criteria.
+  06_fruit_bowl_loading:
+    summary: Put one banana and two apples in the bowl and let both the bowl and fruit settle.
+    details:
+      - 'Place the bowl within world X -0.5 to 0.5 m, Y -0.3 to 0.3 m and Z 0.70 to 0.85 m, tilted less than 30°.'
+      - Each corrected fruit center must be less than 12.5 cm horizontally from the bowl center and no more than 5 cm below it.
+      - The bowl and all three fruits must have linear speeds below 5 cm/s.
+  07_citrus_plate_loading:
+    summary: Put two lemons and two oranges on the plate and let them settle.
+    details:
+      - Each corrected fruit center must be less than 15 cm horizontally from the plate center and no more than 5 cm below it.
+      - The plate must tilt less than 30°, and each of the four fruits must have a linear speed below 5 cm/s.
+  08_frypan_stand_pour:
+    summary: Place the pan on the stove, pour soy sauce then olive oil, and stand both bottles on the table.
+    details:
+      - Place the pan center less than 10 cm horizontally from the stove target, then tilt the soy sauce and oil bottles by at least 50° in that order.
+      - The pouring bottle's mouth must be less than 12.5 cm horizontally from the pan center. Pouring is evaluated from pose and position, not liquid volume.
+      - Finally, both bottles must tilt less than 15°, move below 5 cm/s and be less than 5 cm above the stove reference height. The bread must be less than 12.5 cm horizontally from the pan center.
+  09_cleaner_moisturizer_box_loading:
+    summary: Put the cleaner and soap in the wooden box and let them settle.
+    details:
+      - Both corrected object centers must be less than 18 cm horizontally from the box center and no more than 5 cm below it.
+      - The box and cleaner must each tilt less than 30°. The soap's orientation is not checked.
+      - Both objects must have linear speeds below 5 cm/s.
+  12_screwdriver_box_and_hammer:
+    summary: Put both screwdrivers in the box, strike the wooden block once with the hammer, then put the hammer in the box.
+    details:
+      - Only a strike after both screwdrivers are in the box counts. Swing the hammer near the block and cause the block to move.
+      - 'Strike thresholds: horizontal distance below 28 cm and hammer speed above 25 cm/s. Within 1 second, the block must respond with linear speed above 2.5 cm/s or angular speed above 0.15 rad/s.'
+      - Finally, all three tools must be less than 18 cm horizontally from the box center and move below 5 cm/s. The box must tilt less than 30°.
+      - Moving the box to the left is not part of the final success criteria.
+  21_condiment_box_loading:
+    summary: Put the soy sauce, vinegar and seasoning in the wooden box, with both bottles upright, and let them settle.
+    details:
+      - Each corrected object center must be less than 18 cm horizontally from the box center and no more than 5 cm below it.
+      - The box, soy sauce bottle and vinegar bottle must tilt less than 30°. The seasoning packet may lie flat.
+      - All three objects must have linear speeds below 5 cm/s.
+  22_tool_box_loading:
+    summary: Put the Phillips screwdriver, flathead screwdriver, wrench and drill in the wooden box and let them settle.
+    details:
+      - Each corrected tool center must be less than 18 cm horizontally from the box center and no more than 5 cm below it.
+      - The box must tilt less than 30°, and each tool must have a linear speed below 5 cm/s.
+  24_stationery_category_sorting:
+    summary: Put the pen and marker in the pen holder, and the glue and battery in the plastic box.
+    details:
+      - Each object's reference point must be inside its assigned container's designated interior region. Both containers must tilt less than 30°.
+      - Stand the pen and marker with their long axes less than 60° from vertical. The glue and battery may have any orientation.
+      - All four objects must have linear speeds below 5 cm/s.
+  26_canned_food_tray_line_arrangement:
+    summary: Stand the can, seasoning, milk carton and canned meat on the tray and let them settle.
+    details:
+      - Each corrected object center must be less than 18 cm horizontally from the tray center and 0 to 15 cm above it.
+      - Each object must tilt less than 25°, the tray less than 30°, and all four objects must have linear speeds below 5 cm/s.
+      - Alignment in a row and spacing between objects are not checked.
+  27_ball_box_loading:
+    summary: Put the soccer ball, tennis ball, golf ball and table tennis ball in the basket and let them settle.
+    details:
+      - Each corrected ball center must be less than 22 cm horizontally from the basket center and no more than 5 cm below it.
+      - The basket must tilt less than 30°, and all four balls must have linear speeds below 5 cm/s.
+  32_baking_tray_prep_with_tools:
+    summary: Put the pudding box, gelatin box, spatula and brush on the tray and let them settle.
+    details:
+      - Each corrected object center must be less than 22 cm horizontally from the tray center and 0 to 18 cm above it.
+      - The tray must tilt less than 30°, and all four objects must have linear speeds below 5 cm/s.
+  34_fridge_wine_interhand_pour:
+    summary: Open the fridge → lift the wine bottle → pour toward the glass → return the bottle to the fridge → close the door.
+    details:
+      - 'Open the door joint to |q| > 1.22 rad, then lift the bottle to world Z > 0.82 m.'
+      - Tilt the bottle by at least 50°, within 35 cm horizontally of the glass, pointing toward it. Actual liquid volume is not checked.
+      - Return the bottle to the fridge's designated interior region, tilted at most 60°, then close the door to |q| < 0.25 rad.
+      - Passing the bottle between hands and which hand is used are not directly checked in the final evaluation.
+  42_trash_disposal:
+    summary: Put the banana peel, paper and bottle in the trash can and let them settle.
+    details:
+      - All three reference points must be less than 25 cm horizontally from the trash can center.
+      - The trash can must tilt less than 30°, and each object must have a linear speed below 5 cm/s.
+      - The current height limit is very loose, so the evaluator does not precisely check whether objects are fully inside the can.
+  43_fridge_fruit_shelf_sorting:
+    summary: Put the banana and apple inside the fridge and close both doors.
+    details:
+      - Both corrected fruit centers must be inside the fridge's designated interior region, with linear speeds below 5 cm/s.
+      - 'Both door joints, joint_0 and joint_1, must satisfy |q| < 0.1 rad.'
+      - The final check requires both fruits to be inside; placing them on different shelves is not required.
+  44_microwave_bowl_loading:
+    summary: Put the baguette in the bowl, place the bowl inside the microwave, and close the door.
+    details:
+      - Both the bowl and baguette must be inside the microwave's designated interior region.
+      - The bowl must tilt less than 30°, the baguette must be less than 12.5 cm horizontally from the bowl center, and both objects must move below 5 cm/s.
+      - 'Close the microwave door joint_0 to |q| < 0.2 rad.'
+  51_toilet_lid_cleaner_pour:
+    summary: Open the toilet lid, tilt the cleaner to pour toward the toilet, then close the lid.
+    details:
+      - 'With the lid joint at q > 0.2, bring the cleaner to world Z ≥ 0.75 m and less than 45 cm horizontally from the toilet.'
+      - Tilt the bottle by at least 50° toward the toilet, keeping the lid open while pouring.
+      - Finally, close the lid joint to within less than 0.1 of -1.0. Pouring is evaluated from the bottle pose, not liquid volume.
+  60_breadbasket_fast_food_loading:
+    summary: Put the fries, burger, bread and baguette in the bread basket and let them settle.
+    details:
+      - Each corrected food center must be less than 18 cm horizontally from the basket center and no more than 5 cm below it.
+      - The basket must tilt less than 30°, and all four food items must have linear speeds below 5 cm/s.
+  61_medicine_shoebox_pack:
+    summary: Put the medicine bottle, toothpaste and moisturizing oil in the shoebox and let them settle.
+    details:
+      - All three reference points must be inside the designated interior region in the box's coordinate frame.
+      - The box must tilt less than 30°, and each object must move below 5 cm/s. The objects do not need to be upright.
+  62_shoebox_accessory_pack:
+    summary: Put the stamp, shoe and pet leash in the shoebox and let them settle.
+    details:
+      - All three reference points must be inside the designated interior region in the box's coordinate frame.
+      - The box must tilt less than 30°, and each object must move below 5 cm/s. The objects may have any orientation.
+  64_sports_ball_cup_sort:
+    summary: Put the softball and baseball in cup D, and the racquetball and golf ball in cup E.
+    details:
+      - Each corrected ball center must be less than 15 cm horizontally from its assigned cup center and no more than 5 cm below it.
+      - Both cups must tilt less than 30°, and all four balls must have linear speeds below 5 cm/s.
+  67_faucet_cup_water_fill:
+    summary: Put the spoon in the cup → move the cup under the faucet → turn the faucet on and off → put the cup on the tray.
+    details:
+      - The spoon must be less than 18 cm from the cup in 3D, with its long axis less than 65° from vertical.
+      - 'Place the cup within 6.3 cm of world XY (0.01, -0.04) m, then open the faucet joint to q ≥ 1.0 and close it to q < 0.52. Keep the cup in that region throughout.'
+      - Finally, the spoon must remain in the cup, and the cup must be less than 20 cm horizontally from the tray center, 0 to 3.5 cm above it, and moving below 5 cm/s.
+      - Actual water volume and which hand is used are not checked.
+  73_jigsaw_puzzle_assembly:
+    summary: Place pieces 2, 3, 4 and 5 in their completed positions around fixed white piece 1 and let them settle.
+    details:
+      - 'Target XY (m): 2=(-0.065, 0.300), 3=(-0.150, 0.270), 4=(-0.150, 0.190), 5=(-0.065, 0.215).'
+      - Each piece's horizontal error must be at most 2 cm, with a height difference of at most 1 cm from the fixed piece.
+      - All pieces 1 to 5 must have linear speeds below 6 cm/s and angular speeds below 0.5 rad/s. The rotation angles themselves are not checked.
+  76_soup_serving:
+    summary: Move the ladle from the pot to above the bowl twice, return it to the pot, then stand the bowl in the serving area.
+    details:
+      - Twice, move the ladle head into the pot region, then to less than 15 cm horizontally from the bowl center and more than 2 cm above the bowl.
+      - 'Final bowl position (m): X -0.56 to -0.38, Y 0.20 to 0.42, Z 0.68 to 0.85. The bowl must tilt less than 30°.'
+      - Finally, the ladle head must be in the pot region. Actual soup volume is not checked.
+  79_bimanual_piano_melody:
+    summary: Complete both the left and right piano key sequences.
+    details:
+      - 'Left key indices: 18 → 18 → 23 → 23 → 24 → 24 → 23.'
+      - 'Right key indices: 33 → 33 → 38 → 38 → 39 → 39 → 38.'
+      - A key counts as pressed above joint position 0.004 and released below 0.002. Repeated notes require releasing and pressing again.
+      - The two sequences progress independently. Wrong notes do not reset progress, and which hand presses a key is not checked.
+  80_gaming_desk_setup:
+    summary: Align the monitor → press and release the simulated ESC key → press and release the left mouse button.
+    details:
+      - The monitor must be at world Y < 0.282 m, with vertical and horizontal alignment errors below 5°, linear speed below 6 cm/s and angular speed below 0.5 rad/s.
+      - 'ESC joint_100: press to |q| > 0.005, then release to |q| < 0.001.'
+      - 'Place the mouse at Y < keyboard Y + 0.015 m. Press button joint_0 to |q| > 0.0075, then release to |q| < 0.001.'
+  86_short_jigsaw_puzzle:
+    summary: Place only pieces 2 and 3 in their completed positions beside fixed white piece 1 and let them settle.
+    details:
+      - 'Target XY (m): 2=(-0.065, 0.300), 3=(-0.150, 0.270). Each horizontal error must be at most 2 cm.'
+      - Each height difference from the fixed piece must be at most 1 cm, and pieces 2 and 3 must have linear speeds below 10 cm/s.
+      - Pieces 4 and 5, rotation angles and angular speeds are not part of the success criteria.

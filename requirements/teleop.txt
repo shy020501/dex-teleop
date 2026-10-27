@@ -1,0 +1,7 @@
+# Shared Linux teleoperation and dashboard dependencies.
+# Versions are selected by each simulator's environment and constraints.
+numpy
+PyYAML
+pyzmq
+h5py
+Pillow

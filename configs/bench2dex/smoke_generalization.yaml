@@ -1,0 +1,6 @@
+# Minimal scene validation without texture libraries or room backgrounds.
+appearance:
+  background:
+    enabled: false
+  table_surface:
+    enabled: false

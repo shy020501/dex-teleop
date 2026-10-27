@@ -1,0 +1,829 @@
+diff --git a/collector/cameras.py b/collector/cameras.py
+index 77e6b8d4adfd34f0a6094f129f1690a77eb0a72f..94a00e1ae6362b15e910adfba7514ee92b66eca1 100644
+--- a/collector/cameras.py
++++ b/collector/cameras.py
+@@ -137,12 +137,14 @@ class CameraRig:
+ 
+     def sync_mounted_camera_poses(self) -> None:
+         """Synchronize robot-link cameras to the latest articulation link poses."""
+-        self._update_mounted_camera_poses()
+-        self._repair_stale_native_camera_poses(
+-            force=True,
+-            check_current=False,
+-            warn=False,
+-        )
++        # Both wrists share one articulation readback for this render. Never
++        # reuse it across Physics steps, resets or articulation replacement.
++        self._sync_body_states = {}
++        try:
++            self._update_mounted_camera_poses()
++            self._repair_stale_native_camera_poses(force=True, check_current=False, warn=False)
++        finally:
++            self._sync_body_states = None
+ 
+     # ------------------------------------------------------------------
+     # Spawning
+@@ -667,7 +669,14 @@ class CameraRig:
+         if data is None:
+             return None
+         if hasattr(data, "body_state_w"):
+-            vec = self._extract_body_vector(getattr(data, "body_state_w"), body_index, expected_dim=7)
++            cache = getattr(self, "_sync_body_states", None)
++            if cache is not None:
++                if "body_state_w" not in cache:
++                    cache["body_state_w"] = self._to_numpy(data.body_state_w)
++                states = cache["body_state_w"]
++            else:
++                states = data.body_state_w
++            vec = self._extract_body_vector(states, body_index, expected_dim=7)
+             if vec is not None:
+                 return vec[:3], vec[3:7]
+         for pos_attr, quat_attr in (("body_pos_w", "body_quat_w"), ("body_link_pos_w", "body_link_quat_w"), ("link_pos_w", "link_quat_w"), ("body_com_pos_w", "body_com_quat_w")):
+@@ -689,7 +698,9 @@ class CameraRig:
+         origin: str,
+         target: str,
+     ) -> np.ndarray:
+-        quat_t = torch.from_numpy(np.asarray(quat_wxyz, dtype=np.float32)).unsqueeze(0).to(self._sim.device)
++        # This is a single CPU quaternion. Sending it to CUDA and immediately
++        # copying the result back adds a synchronization without useful work.
++        quat_t = torch.from_numpy(np.asarray(quat_wxyz, dtype=np.float32)).unsqueeze(0)
+         converted = convert_camera_frame_orientation_convention(
+             quat_t,
+             origin=origin,
+@@ -1075,8 +1086,11 @@ class CameraRig:
+         if override is not None and not use_reported_pose:
+             cam_pos, cam_quat_wxyz = override
+         else:
+-            cam_pos = data.pos_w[0].detach().cpu().numpy().astype(np.float32)
+-            cam_quat_wxyz = data.quat_w_world[0].detach().cpu().numpy().astype(np.float32)
++            # Use the sensor's actual rendered pose, not the requested mount
++            # pose (Fabric can differ slightly). Batch the two small readbacks.
++            pose = torch.cat((data.pos_w[0], data.quat_w_world[0])).detach().cpu().numpy()
++            cam_pos = pose[:3].astype(np.float32)
++            cam_quat_wxyz = pose[3:].astype(np.float32)
+         rot = quat_wxyz_to_rot(cam_quat_wxyz)
+         extrinsic = np.eye(4, dtype=np.float32)
+         extrinsic[:3, :3] = rot
+@@ -1167,7 +1181,7 @@ class CameraRig:
+             clipping_range=clipping_range,
+         )
+ 
+-    def capture(self, dt: float) -> Dict[str, CameraFrame]:
++    def capture(self, dt: float, camera_ids: set[str] | None = None) -> Dict[str, CameraFrame]:
+         """Extract camera data from the frame rendered by the caller."""
+         self._last_capture_errors = list(self._mounted_setup_errors)
+ 
+@@ -1182,7 +1196,7 @@ class CameraRig:
+         skip = self._invalid_mounted_camera_ids | self._blocked_camera_ids
+         active: list[tuple[str, Camera]] = [
+             (cam_id, cam) for cam_id, cam in self._cameras.items()
+-            if cam_id not in skip
++            if cam_id not in skip and (camera_ids is None or cam_id in camera_ids)
+         ]
+ 
+         # ── Phase 1: GPU render ALL cameras ──────────────────────────
+@@ -1210,7 +1224,7 @@ class CameraRig:
+     # Cleanup
+     # ------------------------------------------------------------------
+ 
+-    def close(self) -> None:
++    def close(self, *, keep_camera_prims: bool = False) -> None:
+         render_product_paths: set[str] = set()
+         for cam_id, cam in list(self._cameras.items()):
+             # SensorBase.reset() only clears frame buffers and raises when the
+@@ -1254,7 +1268,7 @@ class CameraRig:
+         # Use raw USD stage.RemovePrim() because DeletePrimsCommand (used
+         # by isaaclab delete_prim) cannot delete prims under an articulation
+         # while the articulation is still loaded.
+-        if self._camera_base_prim_paths:
++        if self._camera_base_prim_paths and not keep_camera_prims:
+             from pxr import Sdf
+ 
+             stage = get_current_stage_compat()
+diff --git a/collector/data_collector.py b/collector/data_collector.py
+index cac0180866d4642e8b800608222ffa2cfa2b1bcc..763a90a37f066c219999563c12b2f9e7f79a920a 100644
+--- a/collector/data_collector.py
++++ b/collector/data_collector.py
+@@ -152,6 +152,8 @@ class DataCollector:
+         self._skip_before_step_once_at = None
+         self._metric_update_count = 0
+         self._last_metric_sim_step = None
++        self._cached_joint_limits = None
++        self._post_step_robot_state = None
+ 
+     @property
+     def episode_active(self) -> bool:
+@@ -206,6 +208,8 @@ class DataCollector:
+         return 1.0 / (physics_dt * float(self._step_stride))
+ 
+     def _refresh_robot_articulation(self) -> object | None:
++        self._post_step_robot_state = None
++        self._cached_joint_limits = None
+         self._robot_articulation = select_robot_articulation(self._interactive_objects)
+         if self._camera_rig is not None:
+             self._camera_rig.set_robot_articulation(self._robot_articulation)
+@@ -439,8 +443,13 @@ class DataCollector:
+         """
+         if not self._episode_active:
+             return
+-        if self._skip_before_step_once_at == sim_step:
++        initial_step = self._skip_before_step_once_at == sim_step
++        if initial_step:
+             self._skip_before_step_once_at = None
++            if not getattr(self, "_attach_initial_action", False):
++                return
++        elif sim_step % self._step_stride != 0:
++            # Do not synchronize joint targets back to CPU on non-recorded steps.
+             return
+         # Extract joint targets from hold_targets
+         action_commanded = None
+@@ -454,6 +463,16 @@ class DataCollector:
+                         action_commanded = np.asarray(target, dtype=np.float32).copy()
+                     break
+ 
++        if initial_step:
++            # The dashboard captured obs_0 after reset/render. Attach the target
++            # that will actually execute now, rather than dropping action_0.
++            frame = self._buffer.frames[0]
++            if frame.sim_step != sim_step:
++                raise RuntimeError("Initial observation/action step mismatch.")
++            frame.action_commanded = action_commanded
++            frame.action_valid = action_commanded is not None
++            frame.action_source = action_source if action_commanded is not None else "none"
++            return
+         self._capture_observation(
+             sim_step,
+             action_commanded=action_commanded,
+@@ -471,7 +490,16 @@ class DataCollector:
+             if self._robot_articulation is not None:
+                 try:
+                     robot_state = read_joint_state(self._robot_articulation)
+-                    joint_limits = read_joint_limits(self._robot_articulation)
++                    if getattr(self, "_camera_frame_provider", None) is not None:
++                        self._post_step_robot_state = (
++                            self._sim.current_time_step_index, self._robot_articulation, robot_state)
++                        # Dashboard limits are fixed for an episode. Refresh at
++                        # start/reset; do not read these constants from CUDA at 60 Hz.
++                        if self._cached_joint_limits is None:
++                            self._cached_joint_limits = read_joint_limits(self._robot_articulation)
++                        joint_limits = self._cached_joint_limits
++                    else:
++                        joint_limits = read_joint_limits(self._robot_articulation)
+                 except Exception:
+                     pass
+             self._metric_tracker.update(
+@@ -551,14 +579,24 @@ class DataCollector:
+                 errors.append("joint_state: robot articulation unavailable")
+             else:
+                 try:
+-                    robot_state = read_joint_state(self._robot_articulation)
++                    cached = getattr(self, "_post_step_robot_state", None)
++                    if (cached is not None and cached[0] == self._sim.current_time_step_index
++                            and cached[1] is self._robot_articulation and cached[2] is not None):
++                        # Last post-Physics state is this pre-action observation.
++                        # Arrays are owned CPU copies; the optional tactile layer
++                        # receives its own mapping rather than mutating the cache.
++                        robot_state = dict(cached[2])
++                    else:
++                        robot_state = read_joint_state(self._robot_articulation)
+                 except Exception as exc:
+                     valid = False
+                     errors.append(f"joint_state: {exc}")
+ 
+         if self._camera_rig is not None:
+             try:
+-                camera_frames = self._camera_rig.capture(dt=self._sim.get_physics_dt())
++                provider = getattr(self, "_camera_frame_provider", None)
++                camera_frames = (provider(sim_step) if provider is not None else
++                                 self._camera_rig.capture(dt=self._sim.get_physics_dt()))
+                 camera_errors = list(self._camera_rig.last_capture_errors)
+                 if camera_errors:
+                     camera_failed = True
+@@ -569,6 +607,14 @@ class DataCollector:
+                 valid = False
+                 errors.append(f"camera: {exc}")
+ 
++        listener = getattr(self, "_camera_frame_listener", None)
++        if listener is not None:
++            try:
++                listener(camera_frames, sim_step)
++            except Exception:
++                # Optional visualization must never interrupt or invalidate recording.
++                pass
++
+         tactile_rig = getattr(self, "_tactile_rig", None)
+         if tactile_rig is not None:
+             try:
+@@ -613,6 +659,9 @@ class DataCollector:
+                 teleop_snapshot=teleop_snapshot,
+             )
+         )
++        observer = getattr(self, "_frame_observer", None)
++        if observer is not None and self._buffer.frame_count > frame_count:
++            observer(self._buffer.frames[-1])
+ 
+     def _get_robot_joint_names(self) -> list[str]:
+         """Get robot joint names for action schema."""
+@@ -673,7 +722,7 @@ class DataCollector:
+         meta = self._build_episode_metadata()
+ 
+         path = self._writer.write_episode(self._buffer, episode_id=episode_id, meta=meta)
+-        print(f"[INFO] Episode written: {path}")
++        print(f"[INFO] Episode written: {path}" if path else "[INFO] Episode queued for background save.")
+         return path
+ 
+     def _build_episode_metadata(self) -> dict:
+@@ -777,6 +826,9 @@ class DataCollector:
+         return meta
+ 
+     def _infer_metric_termination_reason(self) -> str:
++        override = getattr(self, "_episode_termination_reason_override", None)
++        if override is not None:
++            return str(override)
+         if self._episode_step_budget is not None and self._episode_step_budget > 0:
+             if self._metric_update_count >= int(self._episode_step_budget):
+                 return "max_steps"
+diff --git a/collector/episode_buffer.py b/collector/episode_buffer.py
+index b1498e60fe767f0f89bd7f0f4fb6d0da996f034b..4b4cb6cab241bdaa17579e3fa48c67a44aaf1843 100644
+--- a/collector/episode_buffer.py
++++ b/collector/episode_buffer.py
+@@ -28,6 +28,12 @@ class FrameRecord:
+     action_valid: bool = True
+     action_source: str | None = None  # "scripted" | "teleop"
+     teleop_snapshot: dict | None = None
++    # Optional dashboard verification data. Futures never enter the HDF5 schema.
++    scene_state: dict | None = None
++    physics_step: int = -1
++    render_sim_step: int = -1
++    render_completed_ns: int = 0
++    render_future: object | None = None
+ 
+ 
+ @dataclass
+diff --git a/collector/hdf5_writer.py b/collector/hdf5_writer.py
+index da13d7a4852a95be91ec6000daeea81b4e5383b0..b46f01d8cd0ee85feb9e016ec43b8773223a74c3 100644
+--- a/collector/hdf5_writer.py
++++ b/collector/hdf5_writer.py
+@@ -293,12 +293,22 @@ class HDF5EpisodeWriter:
+ 
+             first_rgb = self._first_camera_modality(buffer, cam_id, "rgb")
+             if first_rgb is not None:
+-                rgb = np.zeros((frame_count, *first_rgb.shape), dtype=np.uint8)
+-                for i, frame in enumerate(buffer.frames):
+-                    cam = frame.camera.get(cam_id)
+-                    if cam is not None and cam.rgb is not None:
+-                        rgb[i] = cam.rgb.astype(np.uint8)
+-                cam_grp.create_dataset("rgb", data=rgb, compression="gzip", compression_opts=4)
++                if getattr(self, "stream_camera_images", False):
++                    # The dashboard writer runs concurrently with control. Avoid
++                    # an episode-sized temporary and long HDF5 lock ownership.
++                    rgb = cam_grp.create_dataset("rgb", shape=(frame_count, *first_rgb.shape),
++                        dtype=np.uint8, chunks=(1, *first_rgb.shape), compression="gzip", compression_opts=4)
++                    for i, frame in enumerate(buffer.frames):
++                        cam = frame.camera.get(cam_id)
++                        if cam is not None and cam.rgb is not None:
++                            rgb[i] = np.asarray(cam.rgb, dtype=np.uint8)
++                else:
++                    rgb = np.zeros((frame_count, *first_rgb.shape), dtype=np.uint8)
++                    for i, frame in enumerate(buffer.frames):
++                        cam = frame.camera.get(cam_id)
++                        if cam is not None and cam.rgb is not None:
++                            rgb[i] = cam.rgb.astype(np.uint8)
++                    cam_grp.create_dataset("rgb", data=rgb, compression="gzip", compression_opts=4)
+ 
+             first_depth = self._first_camera_modality(buffer, cam_id, "depth_m")
+             if first_depth is not None:
+diff --git a/main.py b/main.py
+index e6ba7f1..b43bc65 100644
+--- a/main.py
++++ b/main.py
+@@ -58,6 +58,8 @@ parser.add_argument(
+ )
+ parser.add_argument("--collect", action="store_true", help="Enable dataset collection.")
+ parser.add_argument("--teleop", action="store_true", help="Enable teleoperation.")
++parser.add_argument("--teleop-backend", choices=["local", "network"], default="local")
++parser.add_argument("--teleop-config", type=str, default=None)
+ parser.add_argument(
+     "--collect-config",
+     type=str,
+@@ -259,6 +261,16 @@ def _warmup_scene_before_camera_recording(
+     reason: str,
+ ) -> None:
+     """Advance unrecorded renders/steps so reset/teleport camera poses settle."""
++    if collector is not None and getattr(collector, "_split_rendering", False):
++        # The renderer owns its cameras. Reset snapshots are captured after the
++        # same unrecorded settling step, without invoking Kit rendering here.
++        for _ in range(max(1, _env_int("DEX2BENCH_CAMERA_RESET_WARMUP_STEPS", 1))):
++            for hook in pre_step_hooks:
++                hook()
++            write_articulation_targets(controlled_articulations, articulation_hold_targets)
++            sim.step(render=False)
++            update_sim_objects(interactive_objects.values(), physics_dt)
++        return
+     if not _collector_has_camera_modalities(collector):
+         return
+ 
+@@ -442,12 +454,26 @@ def _apply_scripted_demo_targets(
+ 
+ def main() -> None:
+     collector: DataCollector | None = None
++    dashboard_session = None
++    gc_policy = None
++    dashboard = None
++    if os.environ.get("BENCH2DEX_DASHBOARD") == "1":
++        from dex_teleop.dashboard.state import get_dashboard
++        dashboard = get_dashboard()
++    debug_preview = bool(dashboard and dashboard.debug_mode)
++    if debug_preview:
++        os.environ["BENCH2DEX_HAPTICS"] = "0"
+     teleop_bridge = None
+     keyboard_controls = None
+     task_path = os.path.abspath(args_cli.task) if args_cli.task else None
+     scene_ready = False
+     sim_step = 0
+     primary_error: BaseException | None = None
++    worker_config = None
++    if os.environ.get("BENCH2DEX_SCENE_WORKER"):
++        import json
++        with open(os.environ["BENCH2DEX_SCENE_WORKER"], encoding="utf-8") as stream:
++            worker_config = json.load(stream)
+ 
+     try:
+         if task_path is None:
+@@ -456,6 +482,9 @@ def main() -> None:
+ 
+         task = load_yaml(task_path)
+         robot_key = DEFAULT_ROBOT_KEY
++        if worker_config is not None:
++            task = worker_config['launch']['task_document']
++            robot_key = worker_config['launch']['robot_key']
+         default_collect_cfg = os.path.join(SCRIPT_DIR, "configs", "collect", "default.yaml")
+         collect_cfg_path = args_cli.collect_config or default_collect_cfg
+         fixed_background_sample = _build_fixed_background_sample(
+@@ -476,6 +505,8 @@ def main() -> None:
+         generalization_raw = load_yaml(generalization_cfg_path) or {}
+         overrides = task.get("generalization_overrides") if isinstance(task, dict) else None
+         merged_generalization_raw = merge_scene_generalization_overrides(generalization_raw, overrides) if overrides else dict(generalization_raw)
++        if worker_config is not None:
++            merged_generalization_raw = worker_config['launch']['generalization_raw']
+         generalization_cfg = parse_scene_generalization_config(merged_generalization_raw, config_path=generalization_cfg_path)
+         generalization_enabled = bool(args_cli.enable_generalization)
+         collect_cfg = None
+@@ -483,11 +514,19 @@ def main() -> None:
+         collection_seed_allocator = None
+         current_seed_context = None
+         if args_cli.collect:
+-            collect_cfg = load_collect_config(
+-                collect_cfg_path,
+-                output_root_override=args_cli.output_root,
+-                robot_key=robot_key,
+-            )
++            if worker_config is not None:
++                # Split rendering and replay consume the parent's resolved
++                # camera configuration, not the original robot profile YAML.
++                from dex_teleop.backends.bench2dex.scene_state import load_worker_collect_config
++                collect_cfg = load_worker_collect_config(
++                    collect_cfg_path, output_root_override=args_cli.output_root,
++                )
++            else:
++                collect_cfg = load_collect_config(
++                    collect_cfg_path,
++                    output_root_override=args_cli.output_root,
++                    robot_key=robot_key,
++                )
+             tactile_enabled = collect_cfg.enabled("tactile")
+             collection_base_seed = int(args_cli.seed) if args_cli.seed is not None else COLLECT_BASE_SEED_DEFAULT
+             task_seed_id = resolve_task_seed_id(task_path, args_cli.task_seed_id)
+@@ -517,6 +556,14 @@ def main() -> None:
+             task_asset_codes=collect_task_asset_codes(task),
+             asset_split=args_cli.generalization_split,
+         )
++        if worker_config is not None:
++            launch = worker_config['launch']
++            from build import dict_to_generalization_sample
++            scene_generalization_sample = dict_to_generalization_sample(launch['generalization_sample'])
++            fixed_background_sample = launch['fixed_background_sample']
++            generalization_enabled = bool(launch['generalization_enabled'])
++            args_cli.enable_generalization = generalization_enabled
++            _seed_everything(launch['episode_seed'])
+         if generalization_enabled:
+             print(f"[INFO] Scene generalization enabled: {generalization_cfg_path}")
+             print(f"[INFO] Scene generalization robot_key: {robot_key}")
+@@ -527,7 +574,7 @@ def main() -> None:
+         _ensure_tactile_supported_device(sim_device=sim_device, tactile_enabled=tactile_enabled)
+         print(f"[INFO] sim_device={sim_device}")
+         sim_cfg = sim_utils.SimulationCfg(
+-            dt=0.0166666,
++            dt=worker_config['launch']['physics_dt'] if worker_config is not None else 0.0166666,
+             device=sim_device,
+             physx=sim_utils.PhysxCfg(
+                 enable_ccd=True,
+@@ -544,6 +591,9 @@ def main() -> None:
+         # sim.set_camera_view([0.0, -1.5, 2.0], [0.0, 0.0, 0.82])
+         sim.set_camera_view([0.0, 0.0, 2.20], [0.0, 0.0, 0.82])
+ 
++        if args_cli.teleop and args_cli.teleop_backend == "network" and not debug_preview:
++            from dex_teleop.core.protocol import load_config as _network_config
++            os.environ["BENCH2DEX_HAPTICS"] = "1" if _network_config(args_cli.teleop_config).get("haptics", {}).get("enabled", False) else "0"
+         runtime = build_scene(
+             task,
+             task_dir,
+@@ -629,6 +679,10 @@ def main() -> None:
+         logger.debug("robot classified: %s", groups.robot_articulation is not None)
+         logger.debug("controlled articulations: %d", len(controlled_articulations))
+ 
++        if args_cli.teleop and args_cli.teleop_backend == "network" and not debug_preview:
++            from dex_teleop.backends.bench2dex.contacts import prepare_hand_contact_reports
++            prepare_hand_contact_reports(args_cli.teleop_config)
++
+         groups, controlled_articulations, task_articulations, non_articulation_objects, articulation_hold_targets = (
+             initialize_scene_runtime_state(
+                 sim=sim,
+@@ -645,6 +699,25 @@ def main() -> None:
+         if collector is not None:
+             from collector.contact_sensor_reader import install_contact_reader_for_runtime
+             install_contact_reader_for_runtime(collector, runtime)
++            if dashboard is not None and not debug_preview:
++                collector._replay_launch = dict(
++                    task_path=task_path, task_document=task, robot_key=robot_key,
++                    collect_config=collect_cfg.to_dict(), physics_dt=float(physics_dt),
++                    control_stride=(1 if os.environ.get('DEX2BENCH_SCRIPTED_DEMO', '').strip().lower() in
++                                    {'beaker_bimanual_grasp', 'wrist_camera_check', 'side_object_grasp',
++                                     'side_object_hover', '1', 'true'} else 3),
++                    generalization_raw=merged_generalization_raw,
++                    generalization_enabled=generalization_enabled,
++                    generalization_sample=runtime['scene_generalization_sample'],
++                    fixed_background_sample=fixed_background_sample,
++                    base_seed=args_cli.seed, episode_seed=int(current_seed_context.episode_seed),
++                )
++
++        if worker_config is not None:
++            from dex_teleop.backends.bench2dex.scene_worker import run_worker
++            run_worker(worker_config, collector, sim, interactive_objects,
++                       controlled_articulations, articulation_hold_targets, pre_step_hooks, simulation_app)
++            return
+ 
+         # ── 禁用 Isaac Sim 内置实时节流, 改用外部时间对齐 ──────────
+         try:
+@@ -660,7 +733,16 @@ def main() -> None:
+ 
+         # ── Teleop setup ──────────────────────────────────────────────
+         teleop_bridge = None
+-        if args_cli.teleop:
++        if args_cli.teleop and args_cli.teleop_backend == "network" and not debug_preview:
++            from dex_teleop.backends.bench2dex.sim_adapter import create_bridge
++            robot_art = interactive_objects.get("global_robot")
++            if robot_art is None:
++                raise RuntimeError("Network teleoperation requires global_robot")
++            teleop_bridge = create_bridge(robot_art, args_cli.teleop_config)
++            if not teleop_bridge.start(wait_timeout=0):
++                raise RuntimeError("Network teleoperation failed to start")
++            print("[INFO] Network teleop active (browser visualization is independent).")
++        elif args_cli.teleop and not debug_preview:
+             from teleop import TeleopController, TeleopIsaacLabBridge
+ 
+             hand_type = _resolve_hand_type(DEFAULT_ROBOT_KEY)
+@@ -698,7 +780,7 @@ def main() -> None:
+         _homing_start_sim_step: int | None = None  # 录制中开始 homing 的仿真步记录
+         _homing_start_wall_time: float | None = None  # homing 开始的系统时间（超时检测用）
+         _HOMING_TIMEOUT_S = 10.0  # homing 超时秒数，超时后瞬移到 home
+-        keyboard_episode_mode = bool(args_cli.collect) and not _env_truthy("DEX2BENCH_AUTO_RECORD")
++        keyboard_episode_mode = bool(args_cli.collect) and dashboard is None and not _env_truthy("DEX2BENCH_AUTO_RECORD")
+         if keyboard_episode_mode:
+             keyboard_controls = setup_episode_keyboard_controls()
+             if keyboard_controls is None:
+@@ -718,7 +800,7 @@ def main() -> None:
+         auto_record_episode_index = 1
+         auto_record_episode_start_step = 0
+         auto_record_episode_step_budget = args_cli.episode_steps
+-        if collector is not None and not keyboard_episode_mode and _env_truthy("DEX2BENCH_AUTO_RECORD"):
++        if collector is not None and not keyboard_episode_mode and dashboard is None and _env_truthy("DEX2BENCH_AUTO_RECORD"):
+             auto_record_episode_target = max(1, _env_int("DEX2BENCH_AUTO_RECORD_EPISODES", 1))
+             if auto_record_episode_target > 1:
+                 if auto_record_episode_step_budget is None:
+@@ -734,7 +816,7 @@ def main() -> None:
+                         f"steps_per_episode={auto_record_episode_step_budget}"
+                     )
+ 
+-        if collector is not None and not keyboard_episode_mode:
++        if collector is not None and not keyboard_episode_mode and dashboard is None:
+             _warmup_scene_before_camera_recording(
+                 collector=collector,
+                 sim=sim,
+@@ -750,6 +832,23 @@ def main() -> None:
+             if ghost_state["enabled"] and ghost_state["start_sim_step"] is None:
+                 ghost_state["start_sim_step"] = 0
+ 
++        if dashboard is not None and collector is not None:
++            _warmup_scene_before_camera_recording(
++                collector=collector, sim=sim, physics_dt=physics_dt,
++                controlled_articulations=controlled_articulations,
++                articulation_hold_targets=articulation_hold_targets,
++                interactive_objects=interactive_objects, pre_step_hooks=pre_step_hooks,
++                reason="dashboard initialization",
++            )
++            from dex_teleop.backends.bench2dex.collection import CollectionSession
++            dashboard_session = CollectionSession(dashboard, collector, sim,
++                                                   probe=getattr(app_launcher, "_browser_probe", None),
++                                                   hold_targets=articulation_hold_targets)
++
++        environment_snapshot = None
++        if not debug_preview and (dashboard is not None or (args_cli.teleop and args_cli.teleop_backend == "network")):
++            from dex_teleop.backends.bench2dex.scene_reset import SceneResetSnapshot
++            environment_snapshot = SceneResetSnapshot(interactive_objects, articulation_hold_targets)
+         scene_ready = True
+         print(f"[INFO] Scene ready: {task_path}")
+         app_running_before_loop = _safe_app_running_state()
+@@ -757,9 +856,31 @@ def main() -> None:
+         if app_running_before_loop is False:
+             print("[WARN] simulation_app.is_running() is False before the step loop; application may shut down immediately.")
+ 
++        if debug_preview:
++            from dex_teleop.backends.bench2dex.debug_preview import run_debug_preview
++            run_debug_preview(dashboard, sim, getattr(app_launcher, "_browser_probe", None), dashboard_session)
++            return
++
++        # Complete startup GC before timing/physics begins. Keep automatic cyclic
++        # GC deferred even when recording is off or keyboard/tracking is idle.
++        # Renderer/replay processes and the original local backend keep their GC.
++        from dex_teleop.core.gc_policy import create_teleop_gc_policy
++        gc_policy = create_teleop_gc_policy(
++            network_teleop=bool(args_cli.teleop and args_cli.teleop_backend == "network"),
++            debug=debug_preview, worker=worker_config is not None,
++            output_dir=getattr(getattr(app_launcher, "_browser_probe", None), "output", None),
++        )
++        if gc_policy is not None:
++            gc_policy.start()
++            if dashboard_session is not None:
++                dashboard_session.gc_policy = gc_policy
++
+         # ── Timing instrumentation ──────────────────────────────────
+         import time as _time
+         _wall_start = _time.monotonic()
++        _timing_probe = getattr(app_launcher, "_browser_probe", None)
++        if _timing_probe is not None:
++            _timing_probe.reset_timing(_wall_start)
+         _timing_interval = 1000  # 每 N 步打印一次
+         _last_timing_step = 0
+         _last_timing_wall = _wall_start
+@@ -768,10 +889,74 @@ def main() -> None:
+         _write_sum_ms = 0.0
+         _sleep_sum_ms = 0.0
+         _target_step_s = physics_dt   # 外部时间对齐目标 (e.g. 0.01s for 100Hz)
++        _pacer = None
++        if dashboard_session is not None:
++            from dex_teleop.backends.bench2dex.rendering import StepPacer
++            _pacer = StepPacer(physics_dt)
+         # ── End timing setup ────────────────────────────────────────
+ 
+         while simulation_app.is_running():
+             _step_wall_t0 = _time.monotonic()
++            dashboard_reset = False
++            if dashboard_session is not None:
++                dashboard_reset = dashboard_session.before_step(sim_step, teleop_bridge)
++                if dashboard.restart_task:
++                    break
++                _replay_was_paused = dashboard_session.replay_paused
++                if dashboard_session.service_replay(teleop_bridge):
++                    if _timing_probe is not None and not _replay_was_paused:
++                        _timing_probe.reset_timing()
++                    _pacer.reset()
++                    _time.sleep(.025)
++                    continue
++                if _timing_probe is not None and _replay_was_paused:
++                    _timing_probe.reset_timing(_time.monotonic())
++            if environment_snapshot is not None:
++                if not environment_snapshot.matches(interactive_objects):
++                    environment_snapshot = SceneResetSnapshot(interactive_objects, articulation_hold_targets)
++                remote_reset = bool(teleop_bridge is not None and
++                                    hasattr(teleop_bridge, "consume_environment_reset") and
++                                    teleop_bridge.consume_environment_reset())
++                if dashboard_reset or remote_reset:
++                    if _timing_probe is not None:
++                        _timing_probe.reset_timing()
++                    if collector is not None and collector._episode_active:
++                        if dashboard_session is not None:
++                            dashboard_session.finish(False, "environment_reset")
++                        else:
++                            collector.discard_episode()
++                    if episode_session is not None:
++                        episode_session = EpisodeSessionController()
++                    _suppress_teleop = False
++                    _homing_start_wall_time = None
++                    _homing_start_sim_step = None
++                    audit = environment_snapshot.restore(articulation_hold_targets)
++                    sim.forward()
++                    update_sim_objects(interactive_objects.values(), 0.0)
++                    audit.update(environment_snapshot.audit())
++                    if teleop_bridge is not None and hasattr(teleop_bridge, "complete_environment_reset"):
++                        teleop_bridge.complete_environment_reset(audit)
++                    if dashboard_session is not None:
++                        # Refresh camera output before F7 captures the new episode's first state.
++                        _warmup_scene_before_camera_recording(
++                            collector=collector, sim=sim, physics_dt=physics_dt,
++                            controlled_articulations=controlled_articulations,
++                            articulation_hold_targets=articulation_hold_targets,
++                            interactive_objects=interactive_objects, pre_step_hooks=pre_step_hooks,
++                            reason="environment reset",
++                        )
++                        dashboard_session.after_reset(sim_step)
++                        _pacer.reset()
++                    elif gc_policy is not None:
++                        gc_policy.collect("environment_reset")
++                    if collector is not None and not keyboard_episode_mode and dashboard is None:
++                        collector.start_episode(sim_step=sim_step)
++                        auto_record_episode_start_step = sim_step
++                    if ghost_state["enabled"]:
++                        ghost_state["start_sim_step"] = None
++                    print(f"[REMOTE] Full environment reset: {audit}", flush=True)
++                    if _timing_probe is not None:
++                        _timing_probe.reset_timing(_time.monotonic())
+ 
+             if episode_session is not None and keyboard_controls is not None:
+                 _input_iface, _keyboard, _subscription, pending_commands, _global_listener = keyboard_controls
+@@ -971,7 +1156,7 @@ def main() -> None:
+             )
+ 
+             # Capture (obs_t, action_t) — Convention A: action_t will be executed next
+-            if collector is not None:
++            if collector is not None and not (dashboard_session and dashboard_session.save_error):
+                 _t_before = _time.monotonic()
+                 collector.before_step(
+                     sim_step=sim_step,
+@@ -1003,6 +1188,8 @@ def main() -> None:
+ 
+             # Refresh object states
+             update_sim_objects(interactive_objects.values(), physics_dt)
++            if teleop_bridge is not None and hasattr(teleop_bridge, "after_physics_step"):
++                teleop_bridge.after_physics_step(physics_dt)
+ 
+             # ── Ghost replay update ────────────────────────────────────
+             if ghost_state["enabled"] and ghost_state["start_sim_step"] is not None:
+@@ -1013,25 +1200,40 @@ def main() -> None:
+                     z_offset=ghost_state.get("z_offset", 0.0),
+                 )
+ 
+-            _sync_collector_mounted_camera_poses(collector)
+-            sim.render()
++            if dashboard_session is not None and dashboard_session.renderer is not None:
++                # RGB, camera transforms and the next observation share this
++                # exact Physics boundary. Extra terminal renders are on demand.
++                dashboard_session.after_render(sim_step + 1)
++            else:
++                _sync_collector_mounted_camera_poses(collector)
++                sim.render()
++                if dashboard_session is not None:
++                    dashboard_session.after_render(sim_step + 1)
+ 
+             # Capture observation AFTER step (includes success tracking)
+             if collector is not None:
+                 _t_after = _time.monotonic()
+-                collector.after_step(sim_step=sim_step, dt=physics_dt)
++                if dashboard_session is None or (collector.episode_active and not dashboard_session.save_error):
++                    collector.after_step(sim_step=sim_step, dt=physics_dt)
++                if dashboard_session is not None:
++                    dashboard_session.after_step(sim_step)
+                 _t_after_step_ms = (_time.monotonic() - _t_after) * 1000
+ 
+             # ── 外部时间对齐: 如果本步耗时 < physics_dt, sleep 补齐 ──
+-            _elapsed_s = _time.monotonic() - _step_wall_t0
+-            _remaining_s = _target_step_s - _elapsed_s
+-            if _remaining_s > 0.0005:  # 只在剩余 > 0.5ms 时才 sleep (避免精度损失)
+-                _time.sleep(_remaining_s)
+-            _t_sleep_ms = max(0.0, _remaining_s * 1000)
++            if _pacer is not None:
++                _t_sleep_ms = _pacer.wait() * 1000
++            else:
++                _remaining_s = max(0., physics_dt - (_time.monotonic() - _step_wall_t0))
++                if _remaining_s > .0005:
++                    _time.sleep(_remaining_s)
++                _t_sleep_ms = _remaining_s * 1000
+             _sleep_sum_ms += _t_sleep_ms
+             # ── End 外部时间对齐 ────────────────────────────────────
+ 
+-            _step_wall_ms = (_time.monotonic() - _step_wall_t0) * 1000
++            _step_wall_end = _time.monotonic()
++            _step_wall_ms = (_step_wall_end - _step_wall_t0) * 1000
++            if _timing_probe is not None:
++                _timing_probe.record_step_timing(physics_dt, _step_wall_end)
+ 
+             sim_step += 1
+ 
+@@ -1101,6 +1303,8 @@ def main() -> None:
+                     )
+                     break
+ 
++                if _timing_probe is not None:
++                    _timing_probe.reset_timing()
+                 current_seed_context = (
+                     collection_seed_allocator.next()
+                     if collection_seed_allocator is not None
+@@ -1160,6 +1364,8 @@ def main() -> None:
+                     "[INFO] Auto-record episode "
+                     f"{auto_record_episode_index}/{auto_record_episode_target} started."
+                 )
++                if _timing_probe is not None:
++                    _timing_probe.reset_timing(_time.monotonic())
+                 continue
+ 
+             if (
+@@ -1192,9 +1398,42 @@ def main() -> None:
+         )
+         raise
+     finally:
+-        teardown_episode_keyboard_controls(keyboard_controls)
+-        if teleop_bridge is not None:
+-            teleop_bridge.stop()
++        shutdown_signals = getattr(app_launcher, "_teleop_shutdown_signals", None)
++        if shutdown_signals is not None:
++            shutdown_signals.begin_cleanup()
++        try:
++            if dashboard_session is not None and collector.episode_active:
++                try:
++                    dashboard_session.finish(bool(collector._metric_tracker and collector._metric_tracker.stable_success), "shutdown")
++                except Exception as exc:
++                    print(f"[DASHBOARD] Shutdown save failed: {exc}", flush=True)
++            cleanup = [("keyboard", lambda: teardown_episode_keyboard_controls(keyboard_controls))]
++            if dashboard is not None:
++                cleanup.append(("previews", dashboard.previews.close))
++            if teleop_bridge is not None:
++                cleanup.append(("teleop", teleop_bridge.stop))
++            if dashboard_session is not None:
++                cleanup.append(("episode/renderer", dashboard_session.close))
++            for label, close in cleanup:
++                try:
++                    close()
++                except Exception as exc:
++                    primary_error = primary_error or exc
++                    print(f"[SHUTDOWN] {label} cleanup error: {exc}", flush=True)
++        finally:
++            if gc_policy is not None:
++                reason = "task_switch" if dashboard is not None and dashboard.restart_task else "shutdown"
++                try:
++                    gc_policy.close(reason)
++                except Exception as exc:
++                    primary_error = primary_error or exc
++                    print(f"[GC] Shutdown collection error: {exc}", flush=True)
++        if dashboard is not None and dashboard.restart_task and primary_error is None:
++            # Finish/close dataset resources, then exec a fresh process image. Avoid
++            # the known USD stage-close hang and release all old GPU state via exec.
++            if collector is not None:
++                collector.close()
++            dashboard.restart_process()
+         shutdown_with_diagnostics(collector=collector, simulation_app=simulation_app, primary_error=primary_error)
+ 
+ 
+diff --git a/robots/multi_ur5_wuji_with_flange.py b/robots/multi_ur5_wuji_with_flange.py
+index 51a0c992bd188d292cd4d37ad58262918b32f000..d011f2b0c14e7c540759e75ae728dad9cbdf64e0 100644
+--- a/robots/multi_ur5_wuji_with_flange.py
++++ b/robots/multi_ur5_wuji_with_flange.py
+@@ -1,5 +1,6 @@
+ """Spawner for the Multi_UR5_wuji dual-arm robot."""
+ 
++import os
+ from pathlib import Path
+ from typing import Dict, Tuple
+ 
+@@ -87,7 +88,7 @@ def spawn_multi_ur5_wuji_with_flange(
+             fix_root_link=True,
+         ),
+         collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+-        activate_contact_sensors=False,
++        activate_contact_sensors=os.environ.get("BENCH2DEX_HAPTICS") == "1",
+     )
+ 
+     robot_cfg = ArticulationCfg(
+diff --git a/utils/runtime_helpers.py b/utils/runtime_helpers.py
+index 21fcee3..4f1fe9e 100644
+--- a/utils/runtime_helpers.py
++++ b/utils/runtime_helpers.py
+@@ -5,6 +5,7 @@ from __future__ import annotations
+ from collections.abc import Iterable
+ from dataclasses import dataclass
+ import sys
++import os
+ import traceback
+ from typing import Any, Protocol, runtime_checkable
+ 
+@@ -187,7 +188,20 @@ def shutdown_runtime(collector=None, simulation_app=None):
+ 
+     if simulation_app is not None:
+         try:
+-            simulation_app.close()
++            # Opt-in headless launchers only. Collector resources have already
++            # closed above; bypass the known Isaac Sim 5.1 USD stage-close hang.
++            smoke_fast_exit = (
++                os.environ.get("BENCH2DEX_SMOKE_FAST_EXIT") == "1"
++                and (collector is None or (collector_error is None and (
++                    os.environ.get("BENCH2DEX_DASHBOARD") == "1"
++                    or bool(os.environ.get("BENCH2DEX_SCENE_WORKER")))))
++                and simulation_app.config.get("headless", False)
++            )
++            if smoke_fast_exit:
++                print("[INFO] Headless launcher: immediate app shutdown after resource close.", flush=True)
++                simulation_app.close(skip_cleanup=True)
++            else:
++                simulation_app.close()
+         except Exception as exc:
+             app_error = exc
+ 

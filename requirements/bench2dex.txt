@@ -1,0 +1,14 @@
+# Bench2Dex simulation dependencies plus shared teleoperation support.
+# Run scripts/setup_bench2dex.sh after creating environments/bench2dex.yml.
+# Isaac Lab core supplies its own requirements through its editable installation.
+-c constraints-bench2dex.txt
+-r teleop.txt
+--extra-index-url https://pypi.nvidia.com
+
+isaacsim[all,extscache]==5.1.0.0
+huggingface-hub
+psutil
+pin
+dex-retargeting
+Flask
+

@@ -1,0 +1,4 @@
+# Centered between the arms, raised and facing the puzzle workspace.
+camera:
+  eye: [0.0, -0.65, 2.00]
+  target: [0.0, 0.25, 0.82]

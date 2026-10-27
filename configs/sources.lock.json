@@ -1,0 +1,20 @@
+{
+  "sources": {
+    "Bench2Dex": {
+      "path": "third_party/Bench2Dex",
+      "url": "https://github.com/Bench2Dex/Bench2Dex.git",
+      "commit": "24b487364c9ba784b2e485acacec1e92ac1379ae",
+      "patch": "patches/bench2dex-workspace.patch"
+    },
+    "IsaacLab": {
+      "path": "third_party/IsaacLab",
+      "url": "https://github.com/isaac-sim/IsaacLab.git",
+      "commit": "37ddf626871758333d6ed89cf64ad702aef127d0",
+      "patch": "patches/isaaclab-sim51-starlette.patch"
+    }
+  },
+  "assets": {
+    "repo": "Bench2Dex/Assets",
+    "revision": "bf65215f844d1fca30750e4cc70d7266650abf0a"
+  }
+}

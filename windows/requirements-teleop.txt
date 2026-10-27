@@ -1,0 +1,6 @@
+numpy>=1.26,<3
+PyYAML>=6,<7
+pyzmq>=26,<28
+cffi>=1.16,<3
+# MANUS SDK 3.2.1: install from your licensed SDK's Python directory.
+# The client runs in the console; no Tk/GUI dependency is needed.

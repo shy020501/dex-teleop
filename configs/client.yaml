@@ -1,0 +1,26 @@
+# Common Windows client settings; no simulator or robot configuration.
+network:
+  client_endpoint: tcp://127.0.0.1:15557
+  browser_url: http://127.0.0.1:18080
+  request_timeout_ms: 150
+devices:
+  finger_source: manus
+  tracking_timeout_s: 0.2
+keys:
+  x_plus: d
+  x_minus: a
+  y_plus: w
+  y_minus: s
+  z_plus: space
+  z_minus: shift
+  deadman: null
+  home: f6
+  reset: f7
+  select_right: f1
+  select_left: f2
+haptics:
+  enabled: true
+  # The server chooses vibration strength; this is the local device ceiling.
+  max_power: 1.0
+  feedback_timeout_s: 0.25
+  output_hz: 50

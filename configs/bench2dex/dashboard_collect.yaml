@@ -1,0 +1,356 @@
+# Shared browser/recording main RGB 1280x720 + two wrist RGB cameras 320x240.
+dataset:
+  root: ../../logs/dashboard-staging
+  name: ui
+capture:
+  fps: 20
+  step_stride: 3
+  max_buffer_mb: 6144
+modalities:
+  rgb: true
+  depth: false
+  joint_state: true
+  object_pose: true
+  box3d: false
+  box2d: false
+  tactile: false
+camera_list:
+- id: cam_task
+  mount_type: world
+  position:
+  - 0.0
+  - -0.65
+  - 2.0
+  target:
+  - 0.0
+  - 0.25
+  - 0.82
+  width: 1280
+  height: 720
+  # Match the previous browser viewport's horizontal field of view.
+  focal_length: 18.147562
+  horizontal_aperture: 20.955
+  clipping_range:
+  - 0.01
+  - 20.0
+- id: cam_wrist_right
+  mount_type: robot_link
+  camera_type: fisheye
+  fisheye_camera_matrix:
+  - - 84.8528
+    - 0.0
+    - 160.0
+  - - 0.0
+    - 84.8528
+    - 120.0
+  - - 0.0
+    - 0.0
+    - 1.0
+  fisheye_distortion_coefficients:
+  - -0.0416667
+  - 0.0005208
+  - -3.1e-06
+  - 1.08e-08
+  fisheye_max_fov_deg: 180.0
+  parent_link: wrist_3_link
+  offset_xyz:
+  - 0.052620712
+  - 0.057382115
+  - 0.075768
+  offset_rpy:
+  - -0.26275
+  - 0.084286
+  - 1.54736
+  width: 320
+  height: 240
+  clipping_range:
+  - 0.01
+  - 5.0
+- id: cam_wrist_left
+  mount_type: robot_link
+  camera_type: fisheye
+  fisheye_camera_matrix:
+  - - 84.8528
+    - 0.0
+    - 160.0
+  - - 0.0
+    - 84.8528
+    - 120.0
+  - - 0.0
+    - 0.0
+    - 1.0
+  fisheye_distortion_coefficients:
+  - -0.0416667
+  - 0.0005208
+  - -3.1e-06
+  - 1.08e-08
+  fisheye_max_fov_deg: 180.0
+  parent_link: L_arm_wrist_3_link
+  offset_xyz:
+  - -0.052529389
+  - 0.057465743
+  - 0.075768174
+  offset_rpy:
+  - 0.261799551
+  - 7.1e-08
+  - 1.569999956
+  width: 320
+  height: 240
+  clipping_range:
+  - 0.01
+  - 5.0
+scene_background:
+  enabled: false
+robot_wrist_camera_profiles:
+  multi_iiwa7_with_sharpa:
+    cam_wrist_left:
+      parent_link: link_7
+      offset_xyz:
+      - 0.1
+      - 0.05
+      - 0.05
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - -1.571
+    cam_wrist_right:
+      parent_link: multi_link_7
+      offset_xyz:
+      - 0.1
+      - -0.05
+      - 0.05
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - -1.571
+  multi_jaka_zu7_dexhand021_with_flange:
+    cam_wrist_left:
+      parent_link: l_Link_6
+      offset_xyz:
+      - 0.05
+      - -0.14
+      - 0.158
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 3.14
+    cam_wrist_right:
+      parent_link: Link_6
+      offset_xyz:
+      - -0.05
+      - -0.14
+      - 0.158
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 3.14
+  multi_panda_with_orca:
+    cam_wrist_left:
+      parent_link: panda_link7
+      offset_xyz:
+      - -0.07
+      - 0.078
+      - 0.25
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0.785
+    cam_wrist_right:
+      parent_link: multi_panda_link7
+      offset_xyz:
+      - -0.07
+      - 0.078
+      - 0.25
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0.785
+  multi_panda_with_allegro:
+    cam_wrist_left:
+      parent_link: panda_link7
+      offset_xyz:
+      - -0.07
+      - 0.078
+      - 0.082
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0.785
+    cam_wrist_right:
+      parent_link: multi_panda_link7
+      offset_xyz:
+      - -0.07
+      - 0.078
+      - 0.082
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0.785
+  multi_rm_65_with_revo2:
+    cam_wrist_left:
+      parent_link: l_Link6
+      offset_xyz:
+      - 0.06
+      - 0.04
+      - 0.01
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - -1.571
+    cam_wrist_right:
+      parent_link: Link6
+      offset_xyz:
+      - 0.06
+      - -0.04
+      - 0.01
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - -1.571
+  multi_xarm7_with_ability:
+    cam_wrist_left:
+      parent_link: xarm_l_link7
+      offset_xyz:
+      - -0.05
+      - 0.1
+      - 0.02
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0.0
+    cam_wrist_right:
+      parent_link: multi_xarm_r_link7
+      offset_xyz:
+      - 0.05
+      - 0.1
+      - 0.02
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0.0
+  multi_xarm7_with_leap:
+    cam_wrist_left:
+      parent_link: link7
+      offset_xyz:
+      - 0.1
+      - 0.05
+      - 0
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - -1.571
+    cam_wrist_right:
+      parent_link: multi_link7
+      offset_xyz:
+      - 0.1
+      - -0.05
+      - 0
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - -1.571
+  multi_ur5_rh5dg2_with_flange:
+    cam_wrist_left:
+      parent_link: L_arm_wrist_3_link
+      offset_xyz:
+      - -0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0
+    cam_wrist_right:
+      parent_link: wrist_3_link
+      offset_xyz:
+      - 0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0
+  multi_ur5_rh56dfx_with_flange:
+    cam_wrist_left:
+      parent_link: L_arm_wrist_3_link
+      offset_xyz:
+      - -0.052529389
+      - 0.057465743
+      - 0.075768174
+      offset_rpy:
+      - 0.261799551
+      - 7.1e-08
+      - 1.569999956
+    cam_wrist_right:
+      parent_link: wrist_3_link
+      offset_xyz:
+      - 0.052620712
+      - 0.057382115
+      - 0.075768
+      offset_rpy:
+      - -0.26275
+      - 0.084286
+      - 1.54736
+  multi_ur5_shadow_hand_with_flange:
+    cam_wrist_left:
+      parent_link: L_arm_wrist_3_link
+      offset_xyz:
+      - -0.05
+      - 0.13
+      - 0.25
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0
+    cam_wrist_right:
+      parent_link: wrist_3_link
+      offset_xyz:
+      - 0.05
+      - 0.13
+      - 0.25
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0
+  multi_ur5_schunk_hand_with_flange:
+    cam_wrist_left:
+      parent_link: L_arm_wrist_3_link
+      offset_xyz:
+      - -0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0
+    cam_wrist_right:
+      parent_link: wrist_3_link
+      offset_xyz:
+      - 0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0
+  multi_ur5_wuji_with_flange:
+    cam_wrist_left:
+      parent_link: L_arm_wrist_3_link
+      offset_xyz:
+      - -0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - 0.1571
+      - 0
+    cam_wrist_right:
+      parent_link: wrist_3_link
+      offset_xyz:
+      - 0.05
+      - 0.1
+      - 0.06
+      offset_rpy:
+      - 0.1571
+      - -0.1571
+      - 0

@@ -1,0 +1,3 @@
+# Only read for scene background; collection is disabled in smoke runs.
+scene_background:
+  enabled: false

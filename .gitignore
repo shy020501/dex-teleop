@@ -1,0 +1,35 @@
+# Runtime logs, experiment outputs, dashboard state and recovery artifacts.
+/logs/
+
+# Local detailed guides and historical records; publish the root README instead.
+/docs/
+
+# Recreated from configs/sources.lock.json and the patches shipped in this repo.
+/third_party/
+
+# Personal configurations and runs; keep the shared directory guide.
+/user_runs/*
+!/user_runs/README.md
+
+# External data and assets, including the workspace's symbolic links.
+# No trailing slash: these rules must also match symbolic links.
+/data
+/assets
+
+# Python caches, local virtual environments and package metadata.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+/.tools/
+
+# Local coding-agent settings.
+/.agents/
+/.codex/
+
+# Local credentials and environment overrides.
+/.aws/
+/.env
+/.env.local
+/tests

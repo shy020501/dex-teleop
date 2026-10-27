@@ -1,0 +1,15 @@
+diff --git a/source/isaaclab/setup.py b/source/isaaclab/setup.py
+index 939ee294d8d4ed858de1cce348c179343f7fcccd..30e358dd8e51a38bfce404f33b9bf57a847000b6 100644
+--- a/source/isaaclab/setup.py
++++ b/source/isaaclab/setup.py
+@@ -37,7 +37,9 @@ INSTALL_REQUIRES = [
+     # make sure this is consistent with isaac sim version
+     "pillow==11.3.0",
+     # livestream
+-    "starlette==0.49.1",
++    # Local Isaac Sim 5.1 compatibility: its FastAPI 0.115.7 requires Starlette <0.46.
++    # Isaac Lab core has no Starlette imports; livestream is outside this smoke test.
++    "starlette==0.45.3",
+     # testing
+     "pytest",
+     "pytest-mock",
