@@ -1,0 +1,18 @@
+# Match the official release's NumPy/Numba constraints in a Python 3.10 environment.
+numpy==1.23.3
+numba==0.56.4
+h5py==3.12.1
+imageio==2.36.1
+setuptools==69.5.1
+termcolor==2.5.0
+huggingface_hub==0.29.1
+mujoco==3.3.7
+robosuite==1.5.2
+scipy==1.10.1
+PyYAML==6.0.2
+pyzmq==27.0.2
+Pillow==11.3.0
+opencv-python==4.11.0.86
+mink==0.0.5
+qpsolvers==4.13.0
+quadprog==0.1.13

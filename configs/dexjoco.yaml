@@ -1,0 +1,40 @@
+simulator: dexjoco
+network:
+  bind: tcp://127.0.0.1:5557
+  timeout_s: 0.25
+  challenge_ttl_s: 0.25
+  client_hz: 60
+control:
+  enabled_sides: [right, left]
+  home_key_enabled: false
+  keyboard_speed_m_s: 0.04
+  max_position_speed_m_s: 0.06
+  max_orientation_speed_rad_s: 0.8
+  max_finger_joint_speed_rad_s: 3.0
+  tracking_timeout_s: 0.2
+  workspace_radius_xyz: [0.80, 0.60, 0.30]
+  workspace_lower_radius_xyz: [0.35, 0.60, 0.70]
+  status_path: logs/dexjoco-live/teleop-status.json
+haptics:
+  enabled: true
+  force_on_n: 0.15
+  force_off_n: 0.08
+  full_force_n: 3.0
+  max_power: 0.35
+  attack_tau_s: 0.04
+  minimum_pulse_s: 0.06
+simulation:
+  physics_dt: 0.002
+  control_hz: 50
+  sample_hz: 25
+  preview_hz: 25
+  max_episode_frames: 1800
+  max_buffer_mb: 6144
+  seed: 0
+render:
+  main_camera: operator
+  main_width: 1280
+  main_height: 720
+  wrist_width: 320
+  wrist_height: 240
+  jpeg_quality: 75

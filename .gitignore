@@ -4,7 +4,7 @@
 # Local detailed guides and historical records; publish the root README instead.
 /docs/
 
-# Recreated from configs/sources.lock.json and the patches shipped in this repo.
+# Recreated by the simulator setup scripts from pinned upstream revisions.
 /third_party/
 
 # Personal configurations and runs; keep the shared directory guide.

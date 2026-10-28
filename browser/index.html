@@ -396,7 +396,7 @@ function renderEpisode(info,file){
  $('episodeSummary').replaceChildren();
  for(const [label,value,hint] of cards){const card=document.createElement('div');card.className='summary-card';const title=document.createElement('dt'),detail=document.createElement('dd'),amount=document.createElement('span'),small=document.createElement('small');L.text(title,label);L.format(amount,value);L.format(small,hint);detail.append(amount,small);card.append(title,detail);$('episodeSummary').append(card);}
  function saved(){if(!s.saved_at)return '—';const stamp=new Date(s.saved_at);return Number.isNaN(stamp.getTime())?'—':tr('{date} (한국 시간)',{date:new Intl.DateTimeFormat(L.locale,{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'medium'}).format(stamp)});}
- const reasons={stable_success:'성공 조건 달성',manual_stop:'수동 종료',environment_reset:'환경 리셋',frame_limit:'최대 수집 길이 도달',shutdown:'서버 종료'};
+ const reasons={stable_success:'성공 조건 달성',task_success:'성공 조건 달성',task_timeout:'Task 시간 제한',task_terminated:'Task 종료',manual_stop:'수동 종료',environment_reset:'환경 리셋',frame_limit:'최대 수집 길이 도달',shutdown:'서버 종료'};
  const facts=[['Task',()=>s.task||meta.task_name||'—'],['로봇',()=>s.robot||meta.robot_key||'—'],['저장 시각',saved],
   ['종료 사유',()=>L.message(reasons[s.termination_reason]||s.termination_reason||'—')],
   ['Physics',()=>s.physics_hz?numberLabel(s.physics_hz)+' Hz':'—'],
@@ -406,11 +406,14 @@ function renderEpisode(info,file){
  renderDatasetTree(info.structure||[],meta);
 }
 function renderDatasetTree(nodes,metadata={}){
- const labels=metadata.simulator==='pomdar'?{
+ const mujocoState=metadata.state_layout==='mujoco_nq_nv'||metadata.simulator==='pomdar';
+ const labels=mujocoState?{
   robot:'MuJoCo 전체 일반화 상태',
   'robot/qpos':'일반화 위치 (자유 관절 위치·쿼터니언 포함)',
   'robot/qvel':'일반화 속도',
   'robot/joint_names':'MuJoCo 관절 이름 (qpos 열과 1:1 대응 아님)',
+ }:{};
+ if(metadata.simulator==='pomdar')Object.assign(labels,{
   action:'액추에이터 제어·손 목표 자세',
   'action/commanded':'액추에이터별 제어값 (단위 참조)',
   'action/action_names':'액추에이터 순서',
@@ -418,7 +421,7 @@ function renderDatasetTree(nodes,metadata={}){
   'action/control_units':'액추에이터별 단위',
   'action/mocap_position_xyz':'손 목표 위치 · 월드 좌표 (m)',
   'action/mocap_orientation_wxyz':'손 목표 자세 · 월드 wxyz',
- }:{};
+ });
  function shapeText(node){return node.shape?(node.shape.length?'['+node.shape.join(' × ')+']':tr('단일 값'))+' '+node.dtype:'';}
  function build(node){
   const branch=node.kind==='group'&&node.children?.length,container=document.createElement(branch?'details':'div'),row=document.createElement(branch?'summary':'div');
@@ -466,8 +469,10 @@ async function dashboardState(){
   const card=$('eef'+id+'X').closest('.eef-card');card.hidden=Array.isArray(ui.enabled_sides)&&!ui.enabled_sides.includes(side);
   L.text(card.querySelector('strong'),ui.pose_reference==='hand_root'?(side==='left'?'왼손':'오른손'):(side==='left'?'왼팔':'오른팔'));
  }
- L.text(document.querySelector('.eef-heading>span'),ui.pose_reference==='hand_root'?'손 루트 · 월드':'EEF · World · Palm');
- L.text('eefPoses',ui.pose_reference==='hand_root'?'손 루트 실제 위치와 자세 · 월드 좌표':'양팔 EEF 실제 위치와 자세 · 월드 좌표 · 손바닥 기준',{},'aria-label');
+ const poseHeading=ui.pose_reference==='hand_root'?'손 루트 · 월드':ui.pose_reference==='end_effector'?'EEF · World':'EEF · World · Palm';
+ const poseDescription=ui.pose_reference==='hand_root'?'손 루트 실제 위치와 자세 · 월드 좌표':ui.pose_reference==='end_effector'?'말단 장치 실제 위치와 자세 · 월드 좌표':'양팔 EEF 실제 위치와 자세 · 월드 좌표 · 손바닥 기준';
+ L.text(document.querySelector('.eef-heading>span'),poseHeading);
+ L.text('eefPoses',poseDescription,{},'aria-label');
  L.text('wristViews',Array.isArray(sides)&&sides.length===1?(sides[0]==='left'?'왼손 손목 카메라':'오른손 손목 카메라'):'좌우 손목 카메라',{},'aria-label');
  const phases={replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',awaiting_outcome:'결과 선택 대기',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
  L.format('collection',()=>tr(phases[ui.phase]||ui.phase)+(debugMode?'':`\n${ui.frames.toLocaleString(L.locale)} frames · ${ui.sim_seconds.toFixed(2)} s`)+(ui.success?' · '+tr('성공'):''));L.text('record',awaitingOutcome?'결과 선택 대기':ui.phase==='save_error'?'F7 저장 재시도':ui.recording?'F7 종료·저장·리셋':'F7 리셋 후 시작');$('record').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving'||(!ui.recording&&(!ui.data_writable||ui.assets?.busy));$('reset').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving';$('maxPower').disabled=debugMode;$('applyFolder').disabled=!ui.ready||ui.recording||awaitingOutcome;$('folder').disabled=!ui.ready||ui.recording||awaitingOutcome;

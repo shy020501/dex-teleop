@@ -1,0 +1,37 @@
+intro.mp4 — demonstration footage and attribution
+
+The video combines a recorded UI walkthrough with prerecorded demonstration
+replays and scripted simulation motion. Footage is cropped, resized, retimed,
+and composited with text and gradients for the Dex-teleop introduction.
+
+Bench2Dex — Bench2Dex authors
+Project: https://bench2dex.github.io/
+Dataset: https://huggingface.co/datasets/Bench2Dex/teleopdata
+Dataset revision: 7c4c2e1cf67683857dbb0b3610cf1d20b1020c55
+Dataset license: Apache-2.0, https://www.apache.org/licenses/LICENSE-2.0
+Recorded camera images: citrus plate loading, microwave bowl loading,
+jigsaw puzzle assembly, and bimanual piano melody.
+
+DexJoCo — DexJoCo authors
+Project: https://dexjoco.github.io/
+Dataset: https://huggingface.co/datasets/DexJoCo/DexJoCo-Datasets-Raw
+Dataset revision: 125df5c1019e97503929ef1a0ad8f90373436afa
+Dataset license: MIT; see the dataset's license notice.
+Official demonstration actions replayed in the native simulator: water plant,
+hammer nail, bimanual assembly, and bimanual Hanoi.
+
+DexMimicGen — Zhenyu Jiang, Yuqi Xie, Kevin Lin, Zhenjia Xu, Weikang Wan,
+Ajay Mandlekar, Linxi "Jim" Fan, and Yuke Zhu
+Project: https://dexmimicgen.github.io/
+Dataset: https://huggingface.co/datasets/MimicGen/dexmimicgen_datasets
+Dataset revision: 181967e10c6277a653e7c9761f3978312af3646a
+Dataset license: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
+Generated demonstration state replays: tray lift, box cleanup, drawer cleanup,
+and coffee. Camera framing and playback speed were adapted for this video.
+
+POMDAR — Soft Robotics Lab, ETH Zurich
+Project: https://srl-ethz.github.io/POMDAR/
+Simulation assets: https://github.com/srl-ethz/pomdar_benchmark
+Scripted native MuJoCo hand control: V1_Wheel, G2_Sphere, G5_Cylinder, and
+C4_Fidget. These clips use newly scripted motions rather than a public
+POMDAR demonstration dataset.

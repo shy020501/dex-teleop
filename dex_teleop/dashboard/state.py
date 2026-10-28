@@ -354,6 +354,8 @@ class Dashboard:
             return result
         with receiver.lock:
             status = receiver.status
+            # Correlate the browser and control connection without touching simulation state.
+            result.update(server_id=status.get('server_id'), epoch=status.get('epoch'))
             stamp = status.get('pose_monotonic_s')
             if not status.get('ready') or stamp is None:
                 return result
