@@ -1,6 +1,6 @@
 # Dex-teleop
 
-https://github.com/user-attachments/assets/29a96f0c-2265-41fd-8486-cf33e6efd5af
+https://github.com/user-attachments/assets/1173e55c-ab69-48b0-bab6-2eeb1d44ade1
 
 Dex-teleop is a platform that connects input devices (e.g., MANUS Metaglove, HTC Vive Tracker) on Windows to dexterous robot simulators running on Linux servers for teleoperation and demonstration data collection.
 
