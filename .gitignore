@@ -33,4 +33,5 @@ __pycache__/
 /.aws/
 /.env
 /.env.local
+/configs/client.local.yaml
 /tests

@@ -5,7 +5,17 @@ network:
   request_timeout_ms: 150
 devices:
   finger_source: manus
+  pose_source: keyboard
   tracking_timeout_s: 0.2
+vive:
+  # Set serials explicitly when more than one Tracker is connected.
+  tracker_serials: {right: null, left: null}
+  tracking_timeout_s: 0.15
+  position_scale: 1.0
+  world_yaw_deg: 0.0
+  # Translation FROM Tracker origin TO hand reference, in Tracker-local metres.
+  # Zero is a Tracker-centre proxy, not a measured glove mounting calibration.
+  tracker_to_hand_m: {right: [0.0, 0.0, 0.0], left: [0.0, 0.0, 0.0]}
 keys:
   x_plus: d
   x_minus: a

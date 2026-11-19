@@ -199,8 +199,8 @@ class Bridge:
                 delta = desired-self.target
                 distance = np.linalg.norm(delta)
                 self.target += delta*min(1., self.control['max_position_speed_m_s']*dt/max(distance, 1e-12))
-                # MANUS wrist orientation is never used. A calibrated pose provider
-                # such as Vive can replace keyboard's fixed home orientation later.
+                # MANUS wrist orientation is never used. Vive supplies the calibrated
+                # target orientation; keyboard keeps the fixed home orientation.
                 desired_q = pose['orientation_wxyz'] if pose['source'] == 'vive' and not home else self.home_q
                 self.target_q = limited_rotation(self.target_q, desired_q,
                     self.control.get('max_orientation_speed_rad_s', 1.)*dt)
@@ -330,7 +330,7 @@ class Bridge:
             home_event_ack=self.events['home'], reset_event_ack=self.events['reset'])
         self._status = dict(ready=self.enabled, epoch=self.epoch, server_id=self.receiver.server_id,
             coordinate_frame='simulation_world_z_up_m', pose_monotonic_s=now,
-            teleop=describe_server(self.control, self.receiver.config, haptics=True),
+            teleop=describe_server(self.control, self.receiver.config, haptics=True, pose_sources=('keyboard','vive')),
             orientation_mode='keyboard_fixed_home_or_pose_provider', hands=dict(right=hand),
             network=self.receiver.stats(), haptics=self.haptic_data, simulator='pomdar',
             retargeting_error=self.worker.error, action_spec=self.action_spec,

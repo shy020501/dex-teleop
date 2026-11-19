@@ -3,6 +3,30 @@
  */
 window.B2DI18n = (() => {
  const EN = {
+  "Tracker 제어": "Tracker control",
+  "기준 맞추기": "Align",
+  "제어 시작": "Start control",
+  "제어 정지": "Stop control",
+  "앞 방향 보정": "Forward direction",
+  "앞 방향 지정": "Set forward",
+  "공간 방향": "Heading",
+  "기준을 맞춘 뒤 손을 앞으로 10cm 이상 이동하고 앞 방향을 지정하세요.": "Align, move your hand forward at least 10 cm, then set forward.",
+  "Tracker 클라이언트 연결 대기": "Waiting for the Tracker client",
+  "Tracker 기준 연결 대기 · 제어 시작을 누르세요": "Waiting for Tracker alignment · press Start control",
+  "F7 시작 취소": "F7 Cancel start",
+  "Tracker 제어 중": "Tracker control active",
+  "기준 연결 완료 · 제어 시작 가능": "Aligned; ready to start",
+  "Tracker 제어 정지": "Tracker control paused",
+  "Tracker 위치 정보가 오래되었습니다": "Tracker pose is stale",
+  "공간 기준이 변경되었습니다 · 기준을 다시 맞추세요": "SteamVR origin changed; align again",
+  "Tracker 위치가 급변했습니다 · 기준을 맞춘 뒤 다시 시작하세요": "Tracker pose jumped; align and start again",
+  "연결이 끊겼습니다 · 기준을 맞춘 뒤 다시 시작하세요": "Connection lost; align and start again",
+  "이 서버는 아직 Vive 제어를 지원하지 않습니다": "This server has not enabled Vive control",
+  "제어할 손에 Tracker serial을 지정하세요": "Assign Tracker serials to the enabled hand(s)",
+  "기준을 맞춘 뒤 손을 앞으로 10cm 이상 이동하세요": "Align first, then move the hand forward at least 10 cm",
+  "기준 위치에서 손을 앞으로 10cm 이상 이동하세요": "Move the hand forward at least 10 cm from its aligned position",
+  "Windows Vive 클라이언트를 먼저 연결하세요": "Connect the Windows Vive client first",
+  "Tracker 준비 시간이 초과되었습니다 · 제어 시작 후 F7을 다시 누르세요": "Tracker preparation timed out; start Tracker control and retry F7",
   "언어": "Language",
   "화면 연결 중…": "Connecting to video…",
   "일시정지": "Pause",
@@ -203,6 +227,7 @@ window.B2DI18n = (() => {
   "다운로드 실패": "Download failed",
   "완료": "Complete",
   "Replay 불가: 이전 형식 · 업데이트 후 수집한 데이터에서 사용 가능": "Replay unavailable: older format · available for episodes recorded after the update",
+  "Replay 불가: DexBench Newton 상태·action 비교 재생은 아직 지원하지 않습니다.": "Replay unavailable: DexBench Newton state/action comparison is not yet supported.",
   "일반 실행 모드에서 사용 가능": "Available in normal simulation mode",
   "생성 중 조작·수집 일시 정지": "Control and recording pause during generation",
   "요청 중…": "Requesting…",
@@ -338,6 +363,7 @@ window.B2DI18n = (() => {
   "재시도할 저장 오류가 없습니다.": "There is no failed save to retry.",
   "PhysX 접촉 상태·solver 내부 캐시는 복원되지 않습니다. 수치 오차와 원본/상태 영상을 함께 확인하세요.": "PhysX contact state and internal solver caches are not restored. Review numerical errors alongside the original and state-rendered images."
  };
+ const KO = Object.fromEntries(Object.entries(EN).map(([ko, en]) => [en, ko]));
  let language = 'en';
  try { if (JSON.parse(localStorage.getItem('b2d:language')) === 'ko') language = 'ko'; } catch {}
  const bindings = new WeakMap();
@@ -348,7 +374,7 @@ window.B2DI18n = (() => {
  // Only known application messages are localized. Preserve paths and external diagnostics.
  function message(value) {
   const raw = String(value ?? '');
-  if (language === 'ko') return raw;
+  if (language === 'ko') return KO[raw] ?? raw;
   if (Object.hasOwn(EN, raw)) return t(raw);
   const patterns = [
    [/^(\d+)개 항목$/, '{count}개 항목', 'count'],

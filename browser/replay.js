@@ -13,7 +13,7 @@ let replayJob=null,replayTimer=null,replayPlaying=false,replayGeneration=0,repla
 function setupReplay(info){
  cleanupReplay();
  $('createReplay').disabled=!info.replay_available||debugMode;
- replayLocale.text('replayProgress',!info.replay_available?'Replay 불가: 이전 형식 · 업데이트 후 수집한 데이터에서 사용 가능':debugMode?'일반 실행 모드에서 사용 가능':'생성 중 조작·수집 일시 정지');
+ replayLocale.text('replayProgress',!info.replay_available?(info.replay_unavailable_reason||'Replay 불가: 이전 형식 · 업데이트 후 수집한 데이터에서 사용 가능'):debugMode?'일반 실행 모드에서 사용 가능':'생성 중 조작·수집 일시 정지');
 }
 async function cleanupReplay(){
  ++replayGeneration;++replayDraw;++replayPlayback;replayPlaying=false;clearTimeout(replayTimer);

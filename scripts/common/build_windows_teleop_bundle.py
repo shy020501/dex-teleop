@@ -14,7 +14,7 @@ def build_bundle(root=ROOT, output=None):
         files.extend((root/'dex_teleop'/package).rglob('*.py'))
     files.append(root/'configs/client.yaml')
     files.extend(root/'windows'/name for name in (
-        'Update-Teleop.ps1', 'Setup-Teleop.ps1', 'Run-Teleop.ps1',
+        'Update-Teleop.ps1', 'Setup-Teleop.ps1', 'Run-Teleop.ps1', 'Probe-Vive.ps1',
         'Start-TeleopTunnel.ps1', 'requirements-teleop.txt', 'README.md'))
     output = Path(output or root/'dist/dex_teleop_windows.zip')
     output.parent.mkdir(parents=True, exist_ok=True)

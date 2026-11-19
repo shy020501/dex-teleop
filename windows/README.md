@@ -70,6 +70,43 @@ Start with one hand and small movements; check that the other hand stays still a
 
 `-FingerSource mock` supplies explicitly synthetic finger data for testing. It is not a glove calibration or recording source.
 
+## Vive Tracker input (POMDAR, experimental)
+
+The Vive provider is implemented and tested with synthetic poses, real localhost transport and MuJoCo CPU physics. Actual Windows SteamVR, Tracker mounting calibration and combined MANUS hardware operation still need validation. POMDAR is the first enabled backend; other servers remain keyboard-only until their Tracker lifecycle is validated. A null-HMD SteamVR configuration may be used: this client reads the OpenVR background device-pose API, does not use the compositor, and never edits SteamVR settings.
+
+After updating the client, run setup once to install `openvr==2.12.1401`. Existing MANUS SDK installation is retained; do not pass its path again unless reinstalling it.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\Setup-Teleop.ps1
+powershell -ExecutionPolicy Bypass -File windows\Probe-Vive.ps1 -Seconds 15
+```
+
+Keep SteamVR running and move each Tracker separately. The probe prints its model, persistent `LHR-...` serial, valid tracking state, XYZ in metres, and WXYZ quaternion. A detected device whose `valid` is false is not ready for control. The probe needs neither the Linux server, SSH tunnel, MANUS SDK nor a free server GPU.
+
+For control, start POMDAR on Linux, keep the usual SSH tunnel open, and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\Run-Teleop.ps1 -PoseSource vive -TrackerRight 'LHR-YOUR-RIGHT-SERIAL' -ShowRtt
+```
+
+MANUS is still the default finger source. Add `-FingerSource none -Haptics off` to check Tracker movement without gloves. `-TrackerLeft` is reserved for enabled left-hand backends; POMDAR controls only the right hand. With exactly one connected Tracker and one enabled hand, the serial can be omitted. With two Trackers, explicitly map the right one; enumeration order is never used to assign hands.
+
+In **Collection settings → Tracker control**:
+
+1. Put your hand in a comfortable position, then click **Align**. This attaches it to the robot's current pose without moving the robot.
+2. If forward movement is incorrect, remain stopped, click **Align**, move the mapped hand forward at least 10 cm, then click **Set forward**. Return your hand to a comfortable position.
+3. Click **Start control**. This rebases to the current robot pose before enabling translation and rotation. **Stop control** pauses both pose and finger commands; start again after repositioning your real hand.
+
+Tracker activation is explicit and does not require keeping the browser image focused. Browser F6/F7 still require the image to be focused, or use the collection buttons. Ctrl+C in the control PowerShell stops the entire client.
+
+F6 and F7 reset the simulator as before. A fresh Tracker pose after reset becomes the fixed robot Home reference, regardless of where or how the real hand is held. Heading and mounting calibration stay unchanged. If control was active and tracking remained valid, it resumes from Home. F7 starts recording only after this new reference is acknowledged with an active fresh pose. While waiting, no Physics steps or frames are collected; press Start control if paused, or F7 again to cancel. Waiting expires after 30 seconds without creating an episode. POMDAR still asks for success/failure on recording stop.
+
+Tracking loss, pose jumps, a changed SteamVR origin, network reconnection and task replacement pause input; recovery does not re-arm it automatically. Click Start control to rebase and resume. In this initial implementation, losing a configured Tracker pauses the whole Vive provider, including fingers and haptics.
+
+`configs/client.yaml` contains `vive.tracker_serials`, `tracking_timeout_s`, `position_scale`, `world_yaw_deg`, and `tracker_to_hand_m`. The latter is the vector **from Tracker origin to the chosen physical hand reference, expressed in Tracker-local axes**. Zero is only a Tracker-centre proxy. Measure/calibrate this mounting offset before relying on precise rotation about the wrist; neutral-pose alignment cannot infer it. A neutral alignment resolves the initial orientation offset relative to the robot. Heading selected in the UI lasts until the Windows client exits; copy the displayed yaw into `world_yaw_deg` to retain it.
+
+For persistent personal settings, copy `configs/client.yaml` to `configs/client.local.yaml` and pass `-Config configs\client.local.yaml`; updates replace the bundled default file. No additional port, Linux MANUS SDK, or Linux SteamVR installation is needed.
+
 ## 3. Verify the official MANUS SDK first
 
 Use the authorized **3.2.1 Windows SDK** and matching Core 3.2.1. Connect the dongle, start Core, pair/calibrate both gloves and verify tracking in Core. SDK access requires the appropriate MANUS SDK entitlement/license; Core tracking alone does not establish SDK access.

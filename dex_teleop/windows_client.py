@@ -1,4 +1,4 @@
-"""Console-only MANUS client; keyboard input comes from the focused browser view."""
+"""Console-only MANUS client with browser keyboard or calibrated SteamVR poses."""
 import argparse
 import math
 import threading
@@ -28,7 +28,7 @@ class ConsoleReporter:
             print('[Teleop] ' + connection[0] + detail, flush=True)
             self.previous['connection'] = connection
         for key, label in [('browser_error', 'Browser input'), ('sdk_error', 'MANUS'),
-                           ('haptic_error', 'Haptics')]:
+                           ('haptic_error', 'Haptics'), ('tracker_state', 'Tracker')]:
             error = status.get(key)
             if error != self.previous.get(key):
                 print(f'[{label}] {error or "Recovered"}', flush=True)
@@ -40,7 +40,8 @@ class ConsoleReporter:
             rtt = f'{status["rtt_ms"]:.1f} ms' if fresh else '--'
             state = status['connection'] if fresh or status['connection'] != 'Connected' else 'Stale'
             keyboard = 'active' if status.get('keyboard_active') and fresh else 'inactive'
-            print(f'[RTT] {rtt} | {state} | browser {keyboard} | {status.get("hand", "right")}', flush=True)
+            control = 'tracker '+('active' if fresh and status.get('tracker_active') else 'inactive') if status.get('pose_source') == 'vive' else 'browser '+keyboard
+            print(f'[RTT] {rtt} | {state} | {control} | {status.get("hand", "right")}', flush=True)
 
 
 def console_loop(worker, snapshot, show_rtt):
@@ -57,6 +58,9 @@ def main(argv=None):
     parser.add_argument('--config', help='Windows client settings (default: configs/client.yaml)')
     parser.add_argument('--endpoint')
     parser.add_argument('--finger-source', choices=['manus', 'mock', 'none'])
+    parser.add_argument('--pose-source', choices=['keyboard', 'vive'])
+    parser.add_argument('--tracker-right', help='Right glove Tracker serial (e.g. LHR-...)')
+    parser.add_argument('--tracker-left', help='Left glove Tracker serial')
     # Accept the browser argument used by older launchers; native-window control is removed.
     parser.add_argument('--keyboard-source', choices=['browser'], default='browser', help=argparse.SUPPRESS)
     parser.add_argument('--browser-url')
@@ -70,7 +74,20 @@ def main(argv=None):
     args.haptics = args.haptics or ('on' if config['haptics'].get('enabled', True) else 'off')
     endpoint = args.endpoint or config['network']['client_endpoint']
     browser_url = args.browser_url or config['network'].get('browser_url', 'http://127.0.0.1:18080')
-    provider = KeyboardPoseProvider(config)
+    args.pose_source = args.pose_source or config['devices'].get('pose_source', 'keyboard')
+    tracker = None
+    if args.pose_source == 'vive':
+        from dex_teleop.devices.steamvr import SteamVRTrackerReader
+        from dex_teleop.devices.vive import VivePoseProvider
+        serials = config.setdefault('vive', {}).setdefault('tracker_serials', {})
+        for side in ('right', 'left'):
+            if getattr(args, 'tracker_'+side): serials[side] = getattr(args, 'tracker_'+side)
+        tracker = SteamVRTrackerReader()
+        provider = VivePoseProvider(config, tracker)
+    elif args.pose_source == 'keyboard':
+        provider = KeyboardPoseProvider(config)
+    else:
+        parser.error('devices.pose_source must be keyboard or vive')
     stop = threading.Event()
     failed = threading.Event()
     lock = threading.Lock()
@@ -98,16 +115,19 @@ def main(argv=None):
                 start = time.monotonic()
                 try:
                     if client.challenge is None or not client.status.get('ready'):
-                        client.request()
+                        connecting = client.challenge is None
+                        greeting = client.request()
+                        if tracker and (greeting.get('pose_command') or {}).get('action') == 'stop':
+                            provider.command(greeting['pose_command'])
                         if not client.status.get('ready'):
-                            provider.connection_lost()
+                            (provider.server_paused if tracker else provider.connection_lost)()
                             if feedback:
                                 feedback.clear()
                             publish(connection='Waiting for simulation', reason=None,
                                     rtt_ms=None, received_at=None)
                             stop.wait(.1)
                             continue
-                        provider.connection_lost()
+                        if connecting: provider.connection_lost()
                     settings = session_settings(client.status)
                     if provider.synchronize(client.status) and feedback:
                         feedback.clear()
@@ -125,16 +145,23 @@ def main(argv=None):
                     for hand in tracking.values():
                         if hand.get('age_ms', 0) > settings['tracking_timeout_s']*1000:
                             hand['valid'] = False
-                    reply = client.request(provider.packet_hands(tracking))
-                    if not reply.get('accepted'):
+                    if tracker:
+                        telemetry = provider.telemetry()
+                        reply = client.request(provider.packet_hands(tracking), pose_input=telemetry)
+                        publish(tracker_state=telemetry['message'], pose_source='vive', tracker_active=telemetry['armed'])
+                    else:
+                        reply = client.request(provider.packet_hands(tracking))
+                    calibration_changed = tracker and reply.get('reason') == 'calibration_changed'
+                    if not reply.get('accepted') and not calibration_changed:
                         provider.connection_lost()
                     if not client.status.get('ready'):
-                        provider.connection_lost()
+                        (provider.server_paused if tracker else provider.connection_lost)()
                         if feedback:
                             feedback.clear()
                         continue
                     settings = session_settings(client.status)
-                    changed = provider.synchronize(client.status, force=not reply.get('accepted'))
+                    changed = provider.synchronize(client.status, force=not reply.get('accepted') and not calibration_changed)
+                    if tracker: provider.command(reply.get('pose_command'))
                     if feedback:
                         if changed or not settings['haptics']:
                             feedback.clear()
@@ -179,7 +206,11 @@ def main(argv=None):
     try:
         print(f'[Teleop] Console client | fingers: {args.finger_source} | haptics: {args.haptics}', flush=True)
         print(f'[Teleop] Input: {endpoint} | Browser: {browser_url}', flush=True)
-        print('[Teleop] Click the browser simulation to control. Keep this PowerShell open; Ctrl+C to stop.', flush=True)
+        if tracker:
+            print('[Teleop] Vive poses: use the Tracker panel to Align / Start / Stop. Ctrl+C stops all input.', flush=True)
+            tracker.start()
+        else:
+            print('[Teleop] Click the browser simulation to control. Keep this PowerShell open; Ctrl+C to stop.', flush=True)
         if args.finger_source == 'manus':
             from dex_teleop.devices.manus.provider import ManusFingerProvider
             manus = ManusFingerProvider(config['devices']['tracking_timeout_s'])
@@ -206,7 +237,7 @@ def main(argv=None):
             feedback.clear()
         if worker is not None:
             worker.join(timeout=2)
-        for label, resource in [('Browser input', browser_keys), ('Haptics', feedback), ('MANUS', manus)]:
+        for label, resource in [('Tracker', tracker), ('Browser input', browser_keys), ('Haptics', feedback), ('MANUS', manus)]:
             if resource is not None:
                 try:
                     resource.stop()

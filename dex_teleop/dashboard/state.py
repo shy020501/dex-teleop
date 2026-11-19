@@ -152,8 +152,11 @@ class EpisodeStore:
             path = self.episode(value)
             with h5py.File(path, 'r') as f:
                 meta = {k: plain(v[()]) for k, v in f.get('meta', {}).items() if isinstance(v, h5py.Dataset)}
+                replay_available = 'replay/state' in f and meta.get('comparison_replay_supported', True) is not False
+                replay_reason = meta.get('replay_unavailable_reason')
                 return dict(path=value, metadata=meta, groups=list(f.keys()),
-                            replay_available='replay/state' in f,
+                            replay_available=replay_available,
+                            replay_unavailable_reason=(replay_reason if not replay_available and isinstance(replay_reason, str) else None),
                             **describe_episode(f, meta, path.stat().st_size))
 
     @staticmethod
@@ -335,6 +338,8 @@ class Dashboard:
         result['workspace_keys'] = {axis:[keys[axis+'_minus'], keys[axis+'_plus']] for axis in ('x','y','z')}
         result.update(data_root=str(self.store.root), data_writable=self.store.writable(),
                       assets=self.assets.snapshot(), wrist_cameras=self.previews.snapshot())
+        receiver = self._pose_receiver
+        result['pose_input'] = receiver.pose_snapshot() if hasattr(receiver, 'pose_snapshot') else {}
         return result
 
     def keyboard_settings(self):
@@ -387,6 +392,16 @@ class Dashboard:
 
     def submit(self, data):
         action = data.get('action')
+        if action == 'pose_control':
+            command = data.get('command')
+            if self.debug_mode or self._pose_receiver is None:
+                raise ValueError('Tracker control is not available')
+            with self.lock:
+                if command != 'stop' and self.state['phase'] not in ('idle', 'recording', 'saving', 'waiting_tracker'):
+                    raise ValueError('Wait until the simulation is ready')
+                if self.state['recording'] and command in ('align', 'forward'):
+                    raise ValueError('Stop recording before changing the Tracker reference')
+            return {'accepted':True, 'id':self._pose_receiver.request_pose_command(command)}
         if self.replays is not None and self.replays.busy:
             raise ValueError('Replay 생성 중입니다. 완료하거나 취소한 후 변경하세요.')
         if self.debug_mode and action in ('toggle', 'reset', 'haptics', 'workspace'):

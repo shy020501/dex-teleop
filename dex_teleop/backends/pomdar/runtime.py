@@ -65,6 +65,7 @@ class Runtime:
         self.action_source = 'hold'
         self.replay_paused = False
         self.pending_outcome = None
+        self.pending_tracker_start = None
         backend = Backend(args.data_root)
         self.ui = state.install_dashboard(state.Dashboard(backend=backend,
             state_file=args.output_dir/'settings.json', debug_mode=args.debug), args.task)
@@ -208,6 +209,11 @@ class Runtime:
                     continue
                 if action == 'outcome':
                     raise ValueError('This episode is no longer waiting for an outcome')
+                if self.pending_tracker_start is not None:
+                    self.pending_tracker_start = None
+                    self.ui.update(phase='idle')
+                    if action == 'toggle':
+                        continue  # F7 cancels an armed-but-not-yet-recording start.
                 if self.recorder.saving:
                     if action == 'toggle' and self.recorder.error:
                         self.recorder.retry()
@@ -217,8 +223,14 @@ class Runtime:
                     if self.recorder.active:
                         self.request_outcome()
                     else:
+                        receiver = getattr(self.bridge, 'receiver', None)
+                        pose = receiver.pose_snapshot() if hasattr(receiver, 'pose_snapshot') else {}
                         cameras = self.reset()
-                        self.recorder.start(self.step, self.data, cameras)
+                        if pose.get('source') == 'vive':
+                            self.pending_tracker_start = dict(session=receiver.owner, started=time.monotonic())
+                            self.ui.update(phase='waiting_tracker', recording=False, error=None)
+                        else:
+                            self.recorder.start(self.step, self.data, cameras)
                 elif action == 'reset':
                     if self.recorder.active:
                         self.recorder.finish(self.step, self.data, self.capture(), False, 'environment_reset')
@@ -242,6 +254,32 @@ class Runtime:
                     self.ui.update(outcome_request=dict(token=self.pending_outcome['token']))
                 self.ui.update(error=str(exc), workspace_pending=False)
                 print(f'[POMDAR] Command failed: {exc}', flush=True)
+
+    def service_tracker_start(self):
+        """No Physics/frames are collected until the new epoch has a fresh aligned pose."""
+        pending = self.pending_tracker_start
+        if pending is None:
+            return False
+        self.bridge._publish()
+        sample = self.bridge.receiver.snapshot()
+        if sample:
+            packet = sample[0]
+            hand = packet['hands'].get('right', {})
+            pose = packet.get('pose_input', {})
+            if (packet['session'] == pending['session'] and packet['epoch'] == self.bridge.epoch
+                    and pose.get('aligned') and pose.get('armed') and hand.get('active')
+                    and hand.get('pose', {}).get('source') == 'vive'):
+                self.recorder.start(self.step, self.data, self.capture())
+                self.pending_tracker_start = None
+                self.reset_schedule()
+                return False
+        if time.monotonic()-pending['started'] > 30.:
+            self.pending_tracker_start = None
+            self.ui.update(phase='idle', error='Tracker preparation timed out; start Tracker control and retry F7')
+            self.reset_schedule()
+            return False
+        time.sleep(.02)
+        return True
 
     def service_replay(self):
         jobs = self.ui.replays
@@ -268,6 +306,8 @@ class Runtime:
         while not self.stopping and (not self.args.steps or self.completed_steps < self.args.steps):
             self.recorder.poll()
             self.commands()
+            if self.service_tracker_start():
+                continue
             if self.pending_outcome is not None or self.args.debug or self.service_replay():
                 time.sleep(.02)
                 continue

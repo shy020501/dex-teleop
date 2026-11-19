@@ -31,6 +31,7 @@ class Receiver:
         self.stop_event = threading.Event()
         self.ready = threading.Event()
         self.error = None
+        self.pose_command = None
 
     def start(self):
         self.thread = threading.Thread(target=self._run, name='teleop-receiver', daemon=True)
@@ -61,7 +62,37 @@ class Receiver:
         with self.lock:
             if self.latest is None or time.monotonic()-self.last_receive > self.config['timeout_s']:
                 return None
-            return self.latest
+            packet, received = self.latest
+            expired = [side for side, hand in packet['hands'].items()
+                       if hand['pose']['source'] == 'vive' and (not hand['pose'].get('valid', False) or
+                       time.monotonic()-received+hand['pose'].get('age_ms', 1e9)/1000 >
+                       self.status.get('teleop', {}).get('pose_timeout_s', .15))]
+            if not expired:
+                return self.latest
+            packet = copy.deepcopy(packet)
+            for side in expired:
+                packet['hands'][side]['active'] = False
+                packet['hands'][side]['pose']['position_active'] = False
+            return packet, received
+
+    def pose_snapshot(self):
+        with self.lock:
+            value = copy.deepcopy(self.latest[0].get('pose_input', {})) if self.latest else {}
+            age = time.monotonic()-self.last_receive
+            return dict(value, connected=bool(value) and age <= self.config['timeout_s'],
+                        server_ready=bool(self.status.get('ready')))
+
+    def request_pose_command(self, action):
+        if action not in ('align', 'forward', 'start', 'stop'):
+            raise ValueError('Unknown Tracker command')
+        with self.lock:
+            if (self.latest is None or self.latest[0].get('pose_input', {}).get('source') != 'vive'
+                    or time.monotonic()-self.last_receive > self.config['timeout_s']):
+                raise ValueError('Connect the Windows Vive client first')
+            command = dict(id=uuid.uuid4().hex, action=action, server_id=self.server_id,
+                           epoch=self.status.get('epoch'))
+            self.pose_command = (command, self.owner, time.monotonic())
+            return command['id']
 
     def stats(self):
         with self.lock:
@@ -110,8 +141,14 @@ class Receiver:
                     self.challenges = dict(sorted(self.challenges.items(), key=lambda item:item[1][1])[-64:])
             haptics=copy.deepcopy(self.haptics)
             haptics['age_ms']=max(0.,(now-self.haptic_stamp)*1000) if self.haptic_stamp else None
+            pose_command = None
+            if self.pose_command:
+                command, owner, stamp = self.pose_command
+                if owner == session and command['epoch'] == self.status.get('epoch') and now-stamp <= 2.:
+                    pose_command = copy.deepcopy(command)
             return {'version':VERSION, 'haptics':haptics, 'accepted':accepted, 'reason':reason, 'challenge':nonce,
-                    'server_monotonic_ns':int(now*1e9), 'echo_seq':msg['seq'], 'status':copy.deepcopy(self.status)}
+                    'pose_command':pose_command, 'server_monotonic_ns':int(now*1e9),
+                    'echo_seq':msg['seq'], 'status':copy.deepcopy(self.status)}
 
     def _run(self):
         context = zmq.Context()
@@ -161,7 +198,7 @@ class Client:
         self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
         self.socket.connect(self.endpoint)
 
-    def request(self, hands=None):
+    def request(self, hands=None, pose_input=None):
         if self.socket is None:
             self._open()
         self.seq += 1
@@ -169,6 +206,8 @@ class Client:
                'kind':'input' if hands is not None and self.challenge else 'hello'}
         if msg['kind'] == 'input':
             msg.update(challenge=self.challenge, hands=hands, epoch=self.status.get('epoch',0), coordinate_frame=COORDINATE_FRAME)
+            if pose_input is not None:
+                msg['pose_input'] = pose_input
         elif self.keys is not None:
             msg['keys'] = self.keys
         start = time.monotonic()

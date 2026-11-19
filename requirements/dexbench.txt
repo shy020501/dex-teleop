@@ -1,0 +1,7 @@
+# Lightweight host tools; do not install Isaac Sim into this Conda environment.
+PyYAML==6.0.2
+numpy==1.26.4
+h5py==3.14.0
+Pillow==11.3.0
+pyzmq==27.0.1
+pytest==8.4.2

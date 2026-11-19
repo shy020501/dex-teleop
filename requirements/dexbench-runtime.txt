@@ -1,0 +1,5 @@
+# Overlay only. The upstream image owns Isaac Sim, Newton, Warp, torch and numpy.
+PyYAML==6.0.3
+h5py==3.14.0
+Pillow==11.3.0
+pyzmq==27.0.1

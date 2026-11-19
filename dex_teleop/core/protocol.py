@@ -59,6 +59,8 @@ def validate_packet(data):
     hands = data.get('hands')
     if not isinstance(hands, dict) or not hands or not set(hands).issubset(SIDES):
         raise ValueError('Invalid hands')
+    if 'pose_input' in data:
+        data['pose_input'] = validate_pose_input(data['pose_input'])
     for side, hand in hands.items():
         if not isinstance(hand, dict) or not isinstance(hand.get('pose'), dict):
             raise ValueError('Invalid hand/pose object')
@@ -71,6 +73,12 @@ def validate_packet(data):
         pose['orientation_wxyz'] = quaternion(pose['orientation_wxyz'])
         if pose.get('source') not in ('keyboard', 'mock', 'vive'):
             raise ValueError('Unknown pose source')
+        if pose['source'] == 'vive':
+            if type(pose.get('valid')) is not bool:
+                raise ValueError('Vive pose requires tracking validity')
+            age = pose.get('age_ms')
+            if isinstance(age, bool) or not isinstance(age, (float, int)) or not math.isfinite(age) or not 0 <= age <= 10000:
+                raise ValueError('Vive pose requires a finite sample age')
         for event in ('home', 'reset'):
             if type(hand.get(event)) is not int or not 0 <= hand[event] < 2**63:
                 raise ValueError('Invalid event counter')
@@ -91,6 +99,34 @@ def validate_packet(data):
                 raise ValueError('Invalid sample age')
         hand['finger'] = finger
     return data
+
+
+def validate_pose_input(value):
+    if not isinstance(value, dict) or value.get('source') != 'vive':
+        raise ValueError('Invalid pose input telemetry')
+    if value.get('mode') not in ('waiting', 'paused', 'active', 'tracking_lost'):
+        raise ValueError('Invalid tracker mode')
+    if any(type(value.get(k)) is not bool for k in ('aligned', 'armed')):
+        raise ValueError('Invalid tracker alignment/arming status')
+    message = value.get('message', '')
+    yaw = value.get('world_yaw_deg', 0.)
+    if (not isinstance(message, str) or len(message) > 240 or isinstance(yaw, bool)
+            or not isinstance(yaw, (int, float)) or not math.isfinite(yaw) or abs(yaw) > 360):
+        raise ValueError('Invalid tracker status')
+    hands = value.get('hands')
+    if not isinstance(hands, dict) or set(hands)-set(SIDES):
+        raise ValueError('Invalid tracker hand assignments')
+    result = dict(source='vive', mode=value['mode'], aligned=value['aligned'], armed=value['armed'],
+                  message=message, world_yaw_deg=yaw, hands={})
+    for side, hand in hands.items():
+        if not isinstance(hand, dict): raise ValueError('Invalid tracker hand')
+        serial, model, age = hand.get('serial'), hand.get('model', ''), hand.get('age_ms')
+        if (serial is not None and (not isinstance(serial, str) or not 1 <= len(serial) <= 128)
+                or not isinstance(model, str) or len(model) > 160 or type(hand.get('valid')) is not bool
+                or isinstance(age, bool) or not isinstance(age, (int, float)) or not math.isfinite(age) or not 0 <= age <= 10000):
+            raise ValueError('Invalid tracker hand status')
+        result['hands'][side] = dict(serial=serial, model=model, age_ms=age, valid=hand['valid'])
+    return result
 
 
 def encode(data):

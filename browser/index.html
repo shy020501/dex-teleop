@@ -54,6 +54,12 @@ main{position:relative}.wrist-views{position:absolute;right:12px;top:12px;width:
 <div id="settingsPanel" class="panel" role="tabpanel" aria-labelledby="settingsTab">
 <section class="setting-section"><h2 data-i18n="Task 설정">Task settings</h2><select id="task" aria-label="Select task" data-i18n-aria-label="Task 선택"></select><div class="task-criteria"><div class="criteria-heading"><span data-i18n="성공 조건">Success criteria</span><small id="taskDwell"></small></div><div id="taskDescription" class="criteria-copy" tabindex="0"></div></div><div class="row task-actions"><button id="applyTask" data-i18n="Task 적용">Apply task</button><button id="downloadTask" disabled data-i18n="Asset 다운로드">Download assets</button></div><div id="downloadStatus" class="badge" hidden></div><button id="cancelDownload" hidden data-i18n="다운로드 취소">Cancel download</button></section>
 <section class="setting-section"><h2 data-i18n="Episode 수집">Episode collection</h2><div id="collection" class="badge" data-i18n="연결 중…">Connecting…</div><div class="row"><button id="record" data-i18n="F7 리셋 후 시작">F7 Reset &amp; record</button><button id="reset" data-i18n="F6 전체 리셋">F6 Reset all</button></div><p class="muted hint"><span id="collectionPolicy" data-i18n="성공 시 자동 저장 · 수동 종료/리셋은 실패로 저장.">Auto-save on success. Manual stop or reset saves as failure.</span><br><span id="collectionLimit" data-i18n="Episode 최대 길이: 1,800 steps · 약 90초.">Episode limit: 1,800 steps · about 90 s.</span></p></section>
+<section id="trackerSettings" class="setting-section" hidden>
+<h2 data-i18n="Tracker 제어">Tracker control</h2><div id="trackerState" class="badge" role="status"></div>
+<div id="trackerDevices" class="muted hint"></div>
+<div class="row"><button id="trackerAlign" data-i18n="기준 맞추기">Align</button><button id="trackerStart" data-i18n="제어 시작">Start control</button><button id="trackerStop" data-i18n="제어 정지">Stop control</button></div>
+<details><summary data-i18n="앞 방향 보정">Forward direction</summary><p class="muted hint" data-i18n="기준을 맞춘 뒤 손을 앞으로 10cm 이상 이동하고 앞 방향을 지정하세요.">Align, move your hand forward at least 10 cm, then set forward.</p><button id="trackerForward" data-i18n="앞 방향 지정">Set forward</button><div id="trackerHeading" class="muted hint"></div></details>
+</section>
 <section id="workspaceSettings" class="setting-section"><h2 data-i18n="이동 범위">Movement limits</h2>
 <p id="workspaceNote" class="workspace-note" data-i18n="각 손의 Home 기준 · 양손 공통 · 단위 m">Relative to each hand's Home · both hands · meters</p>
 <form id="workspaceForm">
@@ -259,6 +265,19 @@ async function api(path,data){const r=await fetch(path,data?{method:'POST',heade
 function report(e){L.bindMessage('toast',e.message||String(e));}
 async function command(data){try{await api('/api/command',data);L.text('toast','');await dashboardState();}catch(e){report(e);}}
 $('record').onclick=()=>command({action:'toggle'});$('reset').onclick=()=>command({action:'reset'});
+for(const [id,action] of [['trackerAlign','align'],['trackerStart','start'],['trackerStop','stop'],['trackerForward','forward']]){
+ $(id).onclick=()=>command({action:'pose_control',command:action});
+}
+function syncTracker(state){
+ const pose=state.pose_input||{},visible=pose.source==='vive';$('trackerSettings').hidden=!visible;
+ if(!visible)return;
+ L.bindMessage('trackerState',pose.connected?(pose.message||pose.mode):'Tracker 클라이언트 연결 대기');
+ $('trackerDevices').textContent=Object.entries(pose.hands||{}).map(([side,h])=>`${side}: ${h.serial||'—'} · ${h.model||''}`).join('\n');
+ L.format('trackerHeading',()=>`${tr('공간 방향')} ${Number(pose.world_yaw_deg||0).toFixed(1)}°`);
+ const blocked=!pose.connected||!pose.server_ready||state.debug_mode||!['idle','recording','saving','waiting_tracker'].includes(state.phase);
+ $('trackerAlign').disabled=blocked||state.recording;$('trackerForward').disabled=blocked||state.recording||!pose.aligned;
+ $('trackerStart').disabled=blocked||pose.armed;$('trackerStop').disabled=!pose.connected;
+}
 // The server owns the pending result so reconnecting or reloading cannot lose it.
 const outcomeDialog=$('outcomeDialog');
 for(const event of ['pointerdown','keydown','keyup'])outcomeDialog.addEventListener(event,e=>e.stopPropagation());
@@ -474,11 +493,12 @@ async function dashboardState(){
  L.text(document.querySelector('.eef-heading>span'),poseHeading);
  L.text('eefPoses',poseDescription,{},'aria-label');
  L.text('wristViews',Array.isArray(sides)&&sides.length===1?(sides[0]==='left'?'왼손 손목 카메라':'오른손 손목 카메라'):'좌우 손목 카메라',{},'aria-label');
- const phases={replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',awaiting_outcome:'결과 선택 대기',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
+ const phases={waiting_tracker:'Tracker 기준 연결 대기 · 제어 시작을 누르세요',replay:'Replay 생성 중 · 조작·수집 일시 정지',loading:'준비 중…',switching:'Task 전환 중…',resetting:'리셋 중…',idle:'대기',debug:'DEBUG · 조작·수집 중지',recording:'● 수집 중',awaiting_outcome:'결과 선택 대기',saving:'저장 중… · 조작 가능',save_error:'저장 실패 · F7 재시도'};
  L.format('collection',()=>tr(phases[ui.phase]||ui.phase)+(debugMode?'':`\n${ui.frames.toLocaleString(L.locale)} frames · ${ui.sim_seconds.toFixed(2)} s`)+(ui.success?' · '+tr('성공'):''));L.text('record',awaitingOutcome?'결과 선택 대기':ui.phase==='save_error'?'F7 저장 재시도':ui.recording?'F7 종료·저장·리셋':'F7 리셋 후 시작');$('record').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving'||(!ui.recording&&(!ui.data_writable||ui.assets?.busy));$('reset').disabled=debugMode||!ui.ready||awaitingOutcome||ui.phase==='saving';$('maxPower').disabled=debugMode;$('applyFolder').disabled=!ui.ready||ui.recording||awaitingOutcome;$('folder').disabled=!ui.ready||ui.recording||awaitingOutcome;
  if(syncedFolder!==ui.folder&&document.activeElement!==$('folder')){$('folder').value=ui.folder;syncedFolder=ui.folder;}
  if(syncedTask!==ui.task&&taskList.length){$('task').value=ui.task;syncedTask=ui.task;}
- L.bindMessage('error',ui.error||(!ui.data_writable?'데이터 root에 쓰기 권한이 없습니다.':''));syncHaptics(ui);syncWorkspace(ui);
+ L.bindMessage('error',ui.error||(!ui.data_writable?'데이터 root에 쓰기 권한이 없습니다.':''));syncHaptics(ui);syncWorkspace(ui);syncTracker(ui);
+ if(ui.phase==='waiting_tracker')L.text('record','F7 시작 취소');
  if(ui.workspace_pending){$('record').disabled=true;$('reset').disabled=true;}
  if(ui.phase==='save_error')$('reset').disabled=true;
  const jobs=ui.assets?.jobs||[],job=jobs.find(j=>j.state==='downloading'||j.state==='queued')||jobs.filter(j=>j.task===$('task').value).at(-1);$('cancelDownload').hidden=!ui.assets?.busy;$('downloadStatus').hidden=!job||job.state==='complete';if(job)L.format('downloadStatus',()=>`${tr({queued:'대기',downloading:'다운로드 중',cancelled:'취소됨',error:'다운로드 실패',complete:'완료'}[job.state]||job.state)} · ${job.completed_files}/${job.discovered_files}\n${sizeLabel(job.bytes_received)}${job.error?'\n'+L.message(job.error):''}`);$('task').onchange();

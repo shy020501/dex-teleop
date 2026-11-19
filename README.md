@@ -4,7 +4,7 @@ https://github.com/user-attachments/assets/1173e55c-ab69-48b0-bab6-2eeb1d44ade1
 
 Dex-teleop is a platform that connects input devices (e.g., MANUS Metaglove, HTC Vive Tracker) on Windows to dexterous robot simulators running on Linux servers for teleoperation and demonstration data collection.
 
-- **Input:** MANUS Metaglove Pro Haptic finger tracking and keyboard hand translation with fixed orientation. HTC Vive Tracker reception and calibration are not yet implemented.
+- **Input:** MANUS Metaglove Pro Haptic finger tracking and keyboard hand translation with fixed orientation. Experimental SteamVR/Vive 6DoF input is available for POMDAR; Windows hardware validation is pending.
 - **Haptics:** Convert simulated finger contact forces into glove vibrations.
 - **Recording:** Save camera images, robot and task states, commands, and episode metadata in HDF5.
 - **Dashboard:** Select tasks, download assets, view cameras, adjust controls, collect episodes, and inspect recordings and replays.
@@ -29,7 +29,7 @@ A shared Windows client and browser dashboard work across supported simulators, 
 
 ## 📡 Communication
 
-Connections use SSH tunnels. Keep the **Windows control client** running during teleoperation: it handles glove input, HTC Vive Tracker pose input, browser keyboard input, and haptic output. The same client and connection settings work across supported simulators.
+Connections use SSH tunnels. Keep the **Windows control client** running during teleoperation: it handles glove input, HTC Vive Tracker pose input, browser keyboard input, and haptic output. The same client and connection settings work across supported simulators. Vive pose input is currently enabled only for POMDAR.
 
 | Purpose | Protocol | Linux server | Windows client |
 | --- | --- | --- | --- |
@@ -75,7 +75,7 @@ Setup creates `data/<simulator>/` and `assets/<simulator>/`, using the selected 
 
 ### 3. Simulator setup
 
-Install the simulators you want to use. Each has a separate Conda environment containing its simulation and teleoperation dependencies.
+Install the simulators you want to use. Each has a separate Conda environment.
 
 #### Bench2Dex
 
@@ -209,17 +209,19 @@ Controls are disabled when focus is lost. Configure movement limits, recording f
 
 ### Recorded data and replay
 
-Recordings are saved under `data/<simulator>/` in the dashboard's selected subfolder. Open an episode in the **Data** tab to inspect its metadata and generate a replay comparing recorded images, restored states, and simulated actions. Control and recording pause during replay generation.
+Recordings are saved under `data/<simulator>/` in the dashboard's selected subfolder. Open an episode in the **Data** tab to inspect its metadata. For backends with replay support, generate a replay comparing recorded images, restored states, and simulated actions. Control and recording pause during replay generation.
 
 State and action layouts depend on the simulator. MuJoCo integrations preserve generalized positions/velocities, actuator commands, full integration states, and control changes between sampled frames. Simulator-specific hand-pose or policy targets are stored separately. Inspect each episode's metadata for its dimensions and control units.
 
 ## 🔧 Runtime configuration
 
+Experimental Vive Tracker input is enabled for POMDAR. On Windows, run `windows\Setup-Teleop.ps1` once after updating, then `windows\Probe-Vive.ps1` with SteamVR running to identify the Tracker serial and verify a valid pose. Run `windows\Run-Teleop.ps1 -PoseSource vive -TrackerRight 'LHR-YOUR-SERIAL'`; MANUS remains the finger source. The shared collection panel provides Align, Start/Stop, and forward-direction calibration. Resets rebase the current real hand pose to the fixed robot Home pose; F7 waits for a fresh aligned Tracker before starting the episode. See [Windows Tracker setup](windows/README.md#vive-tracker-input-pomdar-experimental) for mounting offsets and tracking-loss behavior. Real Windows hardware validation is pending.
+
 Set environment variables before the launch command. Activate the chosen simulator's Conda environment in each new terminal.
 
 | Environment variable | Default | Description |
 | --- | --- | --- |
-| `DEX_TELEOP_GPU_INDEX` | `0` | Physical GPU index; selects EGL rendering for MuJoCo integrations |
+| `DEX_TELEOP_GPU_INDEX` | `0` | Physical GPU index; selects the simulation GPU for Bench2Dex and EGL rendering for MuJoCo integrations |
 | `TIMING_WINDOW` | `120` | Number of recent steps used for timing averages; positive integer |
 | `DEX_TELEOP_EXECUTION_MODE` | `split` | Bench2Dex only: separate physics/control and rendering processes, or `serial` for one process |
 | `DEBUG_MODE` | `false` | `true`: preview the initial static scene |

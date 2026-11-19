@@ -1,0 +1,8 @@
+# Host launcher/download tools. Isaac Sim 6.1 + Newton run in the pinned Docker image.
+name: dexbench
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - pip>=24,<27

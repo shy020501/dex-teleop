@@ -6,13 +6,14 @@ from dex_teleop.core.protocol import (
 )
 
 
-def describe_server(control, network, *, haptics=False):
+def describe_server(control, network, *, haptics=False, pose_sources=('keyboard',)):
     return dict(protocol_version=VERSION, coordinate_frame=COORDINATE_FRAME,
                 pose_quaternion_order='wxyz', finger_representation=FINGER_REPRESENTATION,
                 client_hz=network.get('client_hz', 60),
                 keyboard_speed_m_s=control['keyboard_speed_m_s'],
                 home_key_enabled=control.get('home_key_enabled', False),
-                tracking_timeout_s=control['tracking_timeout_s'], haptics=bool(haptics))
+                tracking_timeout_s=control['tracking_timeout_s'], haptics=bool(haptics),
+                pose_sources=list(pose_sources), pose_timeout_s=.15)
 
 
 def session_settings(status):

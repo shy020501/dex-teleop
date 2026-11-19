@@ -18,6 +18,7 @@ RUNNERS = {
     'pomdar': 'scripts.pomdar.launch',
     'dexjoco': 'scripts.dexjoco.launch',
     'dexmimicgen': 'scripts.dexmimicgen.launch',
+    'dexbench': 'scripts.dexbench.launch',
 }
 
 

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "sources": {
+    "DexBench": {"url": "https://github.com/RLWRLD/DexBench.git", "commit": "b0be6b1302e895eedf673b78061d3a3c59486eaf", "path": "third_party/DexBench"},
+    "IsaacLab-Arena": {"url": "https://github.com/RLWRLD/IsaacLab-Arena.git", "commit": "59d95cc9b9adbd8560661c1fd3e0487aac4273af", "path": "third_party/DexBench/submodule/isaaclab_arena"},
+    "IsaacLab": {"url": "https://github.com/RLWRLD/IsaacLab.git", "commit": "2d3ae03ede6be38d71af5698509fe8116b6b7216", "path": "third_party/DexBench/submodule/isaaclab_arena/submodules/IsaacLab"}
+  },
+  "runtime": {"isaac_sim": "6.1", "base_image": "nvcr.io/nvidia/isaac-sim@sha256:af1d2b4e75d553bfa27beb5a401198654aa8d607f3b7a6749196e9ce253def20", "upstream_image": "dexbench-arena:b0be6b1", "image": "dex-teleop-dexbench:local", "physics": "Newton; exact pins from the pinned IsaacLab checkout"},
+  "assets": {"repository": "RLWRLD/DexBench-assets", "identity": "SHA-256 OIDs and sizes from the pinned DexBench Git LFS pointers"},
+  "runtime_inputs": {"repository": "RLWRLD/DexBench-eval", "revision": "c54c9c123e93541dc2e6e6128eeaa748db40a027", "note": "Only R1 pile layouts and H3 runtime bundles are downloaded on demand. No demonstration/training datasets or benchmark episode rows."}
+}
